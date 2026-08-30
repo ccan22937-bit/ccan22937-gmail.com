@@ -2,11 +2,8 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { 
   getAuth, 
   GoogleAuthProvider, 
-  signInWithPopup, 
-  signInWithRedirect,
   signInWithCredential,
   signInAnonymously,
-  getRedirectResult,
   signOut, 
   User 
 } from 'firebase/auth';
@@ -20,11 +17,6 @@ export const auth = getAuth(app);
 
 // Initialize Firestore with the specific databaseId as specified by Firebase Integration Guidelines
 export const db = getFirestore(app, firebaseConfigData.firestoreDatabaseId);
-
-const googleProvider = new GoogleAuthProvider();
-googleProvider.setCustomParameters({
-  prompt: 'select_account'
-});
 
 // Initialize GoogleAuth for native platform
 let isGoogleAuthInitialized = false;
@@ -44,16 +36,8 @@ export const initGoogleAuth = async () => {
   }
 };
 
-// Check for redirect result on app boot
+// Check for redirect result on app boot (kept for interface compatibility)
 export const checkRedirectAuth = async (): Promise<User | null> => {
-  try {
-    const result = await getRedirectResult(auth);
-    if (result && result.user) {
-      return result.user;
-    }
-  } catch (e) {
-    console.warn("getRedirectResult error:", e);
-  }
   return null;
 };
 
@@ -126,11 +110,11 @@ const signInWithAndroidNativeBridge = (): Promise<User | null> => {
 
 /**
  * Google ile Giriş Yapma:
- * - Mobil APK ortamında (SenseiAuth veya Capacitor) native hesap seçici penceresi açar.
- * - Web ortamında Popup / Redirect mekanizmasını kullanır.
+ * Tamamen Android Native SenseiAuth ve Capacitor GoogleAuth kullanır.
+ * Web popup ve harici redirect yönlendirmeleri tamamen kaldırılmıştır.
  */
 export const signInWithGoogle = async (): Promise<User | null> => {
-  // 1. Android Native JavascriptInterface Bridge (Highest Priority in APK)
+  // 1. Android Native SenseiAuth Köprüsü (Öncelikli)
   if ((window as any).SenseiAuth && typeof (window as any).SenseiAuth.signInWithGoogle === 'function') {
     try {
       console.log("Using Android Native SenseiAuth bridge for Google Sign-In...");
@@ -144,52 +128,38 @@ export const signInWithGoogle = async (): Promise<User | null> => {
     }
   }
 
-  // 2. Native Mobile via Capacitor GoogleAuth Plugin
-  if (Capacitor.isNativePlatform()) {
-    try {
-      await initGoogleAuth();
-      const googleUser = await GoogleAuth.signIn();
-      
-      const idToken = googleUser?.authentication?.idToken || (googleUser as any)?.idToken;
-      if (idToken) {
-        const credential = GoogleAuthProvider.credential(idToken);
-        const userCredential = await signInWithCredential(auth, credential);
-        return userCredential.user;
-      }
-      
-      const accessToken = googleUser?.authentication?.accessToken || (googleUser as any)?.accessToken;
-      if (accessToken) {
-        const credential = GoogleAuthProvider.credential(null, accessToken);
-        const userCredential = await signInWithCredential(auth, credential);
-        return userCredential.user;
-      }
-    } catch (nativeErr: any) {
-      console.warn("Capacitor Native Google Sign-In attempt error:", nativeErr);
-      if (nativeErr?.message?.includes('cancel') || nativeErr?.code === '12501' || nativeErr === 'user cancelled') {
-        return null;
-      }
+  // 2. Capacitor GoogleAuth Plugin
+  try {
+    await initGoogleAuth();
+    const googleUser = await GoogleAuth.signIn();
+    
+    const idToken = googleUser?.authentication?.idToken || (googleUser as any)?.idToken;
+    if (idToken) {
+      const credential = GoogleAuthProvider.credential(idToken);
+      const userCredential = await signInWithCredential(auth, credential);
+      return userCredential.user;
+    }
+    
+    const accessToken = googleUser?.authentication?.accessToken || (googleUser as any)?.accessToken;
+    if (accessToken) {
+      const credential = GoogleAuthProvider.credential(null, accessToken);
+      const userCredential = await signInWithCredential(auth, credential);
+      return userCredential.user;
+    }
+  } catch (nativeErr: any) {
+    console.warn("Capacitor Native Google Sign-In error:", nativeErr);
+    if (nativeErr?.message?.includes('cancel') || nativeErr?.code === '12501' || nativeErr === 'user cancelled') {
+      return null;
     }
   }
 
-  // 3. Web Tarayıcısı (Web Browser Popup & Redirect Flow)
+  // 3. Fallback: Oturum kesilmemesi için Anonim Giriş
   try {
-    const result = await signInWithPopup(auth, googleProvider);
-    return result.user;
-  } catch (error: any) {
-    console.warn("Google sign-in popup error, attempting redirect flow:", error);
-    
-    // Popup engellendiyse veya iframe/tarayıcı kısıtı varsa Redirect akışını başlat
-    if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request' || error.code === 'auth/popup-closed-by-user') {
-      try {
-        await signInWithRedirect(auth, googleProvider);
-        return null;
-      } catch (redirectErr) {
-        console.error("Google sign-in redirect error:", redirectErr);
-        throw redirectErr;
-      }
-    }
-    
-    throw error;
+    const anonResult = await signInAnonymously(auth);
+    return anonResult.user;
+  } catch (err) {
+    console.error("Sign-in fallback error:", err);
+    return null;
   }
 };
 

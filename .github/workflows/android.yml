@@ -26,13 +26,15 @@ jobs:
         run: npm install --legacy-peer-deps --force
 
       - name: Build Web App
-        run: npm run build || npx vite build || true
+        run: npm run build
 
-      - name: Recreate Capacitor Android Platform
+      - name: Sync Web Assets to Android
         run: |
-          rm -rf android
-          npx cap add android
-          npx cap sync android
+          mkdir -p android/app/src/main/assets/public
+          mkdir -p android/app/src/main/assets/dist
+          cp -r dist/* android/app/src/main/assets/public/
+          cp -r dist/* android/app/src/main/assets/dist/
+          npx cap sync android || true
 
       - name: Build Debug APK with Gradle
         working-directory: ./android

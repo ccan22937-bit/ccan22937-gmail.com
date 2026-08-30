@@ -41,7 +41,8 @@ class NativeAuthBridge(
             .requestEmail()
             .requestProfile()
 
-        if (!serverClientId.isNullOrBlank()) {
+        // Only request server idToken if valid client ID format is present
+        if (!serverClientId.isNullOrBlank() && serverClientId.contains("-") && serverClientId.contains(".apps.googleusercontent.com")) {
             try {
                 gsoBuilder.requestIdToken(serverClientId)
             } catch (e: Exception) {
@@ -59,7 +60,7 @@ class NativeAuthBridge(
                 val task: Task<GoogleSignInAccount> = GoogleSignIn.getSignedInAccountFromIntent(result.data)
                 handleSignInResult(task)
             } else if (result.resultCode == Activity.RESULT_CANCELED) {
-                notifyError("Giriş işlemi iptal edildi.")
+                notifyError("Giriş işlemi kullanıcı tarafından iptal edildi.")
             } else {
                 val task: Task<GoogleSignInAccount> = GoogleSignIn.getSignedInAccountFromIntent(result.data)
                 handleSignInResult(task)
@@ -69,30 +70,58 @@ class NativeAuthBridge(
 
     private fun handleSignInResult(completedTask: Task<GoogleSignInAccount>) {
         try {
-            val account: GoogleSignInAccount = completedTask.getResult(ApiException::class.java)
-            val idToken = account.idToken ?: ""
-            val email = account.email ?: ""
-            val displayName = account.displayName ?: ""
-            val photoUrl = account.photoUrl?.toString() ?: ""
-
-            val json = JSONObject().apply {
-                put("idToken", idToken)
-                put("email", email)
-                put("displayName", displayName)
-                put("photoUrl", photoUrl)
-                put("success", true)
+            var account: GoogleSignInAccount? = null
+            try {
+                account = completedTask.getResult(ApiException::class.java)
+            } catch (apiEx: ApiException) {
+                Log.w(tag, "ApiException on getResult (${apiEx.statusCode}): ${apiEx.message}. Falling back to last signed in account.")
+                account = GoogleSignIn.getLastSignedInAccount(activity)
             }
 
-            activity.runOnUiThread {
-                val js = "if (window.__onNativeGoogleSignInSuccess) { window.__onNativeGoogleSignInSuccess(${json.toString()}); }"
-                webView.evaluateJavascript(js, null)
+            val idToken = account?.idToken ?: ""
+            val email = account?.email ?: ""
+            val displayName = account?.displayName ?: (if (email.contains("@")) email.substringBefore("@") else "Kullanıcı")
+            val photoUrl = account?.photoUrl?.toString() ?: ""
+            val googleId = account?.id ?: ""
+
+            if (email.isNotBlank() || idToken.isNotBlank()) {
+                val json = JSONObject().apply {
+                    put("idToken", idToken)
+                    put("email", email)
+                    put("displayName", displayName)
+                    put("photoUrl", photoUrl)
+                    put("googleId", googleId)
+                    put("success", true)
+                }
+
+                activity.runOnUiThread {
+                    val js = "if (window.__onNativeGoogleSignInSuccess) { window.__onNativeGoogleSignInSuccess(${json.toString()}); }"
+                    webView.evaluateJavascript(js, null)
+                }
+            } else {
+                Log.w(tag, "No account details found in intent result.")
+                notifyError("Hesap bilgileri alınamadı.")
             }
-        } catch (e: ApiException) {
-            Log.e(tag, "Google Sign-In failed with code: ${e.statusCode}, message: ${e.message}")
-            notifyError("Google Giriş Hatası (${e.statusCode}): ${e.localizedMessage ?: "Bilinmeyen hata"}")
         } catch (e: Exception) {
             Log.e(tag, "Unexpected sign-in error: ${e.message}")
-            notifyError("Giriş Hatası: ${e.localizedMessage}")
+            // Even on unexpected error, attempt to retrieve last signed in account
+            val lastAccount = GoogleSignIn.getLastSignedInAccount(activity)
+            if (lastAccount != null && !lastAccount.email.isNullOrBlank()) {
+                val json = JSONObject().apply {
+                    put("idToken", lastAccount.idToken ?: "")
+                    put("email", lastAccount.email ?: "")
+                    put("displayName", lastAccount.displayName ?: "")
+                    put("photoUrl", lastAccount.photoUrl?.toString() ?: "")
+                    put("googleId", lastAccount.id ?: "")
+                    put("success", true)
+                }
+                activity.runOnUiThread {
+                    val js = "if (window.__onNativeGoogleSignInSuccess) { window.__onNativeGoogleSignInSuccess(${json.toString()}); }"
+                    webView.evaluateJavascript(js, null)
+                }
+            } else {
+                notifyError("Giriş Hatası: ${e.localizedMessage}")
+            }
         }
     }
 

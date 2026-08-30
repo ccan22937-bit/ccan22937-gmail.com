@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "app.run.us_west1.sensei_476796648315.twa",
+    "sha256_cert_fingerprints": ["5A:E2:EF:96:70:C0:22:63:B8:FF:FE:4D:D6:76:37:19:BA:A6:59:BC:E5:B6:09:51:DD:C3:54:DA:56:E1:0A:D3"]
+  }
+}]

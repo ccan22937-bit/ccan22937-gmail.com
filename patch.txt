@@ -1,0 +1,18 @@
+  const spinWheel = () => {
+    if (wheelSpinning) return;
+    setWheelSpinning(true);
+    const possibleRewards = [3, 4, 5, 6, 7];
+    const result = possibleRewards[Math.floor(Math.random() * possibleRewards.length)];
+    setTimeout(() => {
+       setWheelResult(result);
+       setWheelSpinning(false);
+    }, 3000);
+  };
+
+  const claimChest = () => {
+    if (wheelResult !== null && selectedChestDay !== null) {
+      onClaimChest(selectedChestDay, wheelResult);
+    }
+    setSelectedChestDay(null);
+    setWheelResult(null);
+  };

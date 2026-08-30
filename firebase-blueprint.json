@@ -1,0 +1,165 @@
+{
+  "$schema": "https://raw.githubusercontent.com/google/aistudio-firebase-tools/main/schema.json",
+  "collections": {
+    "users": {
+      "path": "users/{uid}",
+      "access": {
+        "read": "true",
+        "write": "true"
+      },
+      "schema": {
+        "type": "object",
+        "properties": {
+          "lang": {
+            "type": "string"
+          },
+          "nativeLang": {
+            "type": "string"
+          },
+          "day": {
+            "type": "number"
+          },
+          "hearts": {
+            "type": "number"
+          },
+          "unlockedLevels": {
+            "type": "array"
+          },
+          "lastRefill": {
+            "type": "string"
+          },
+          "lastLessonDate": {
+            "type": "timestamp"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "chat_messages": {
+      "path": "chat_messages/{messageId}",
+      "access": {
+        "read": "true",
+        "write": "true"
+      },
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "sender": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "romaji": {
+            "type": "string"
+          },
+          "nativeExplanation": {
+            "type": "string"
+          },
+          "targetLanguage": {
+            "type": "string"
+          },
+          "pronunciationScore": {
+            "type": "number"
+          },
+          "pronunciationFeedback": {
+            "type": "string"
+          },
+          "audioUrl": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "number"
+          }
+        },
+        "required": ["sender", "text", "targetLanguage", "createdAt"],
+        "additionalProperties": true
+      }
+    },
+    "global_dialogue_library": {
+      "path": "global_dialogue_library/{pairId}",
+      "access": {
+        "read": "true",
+        "write": "true"
+      },
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "triggers": {
+            "type": "array"
+          },
+          "counterparts": {
+            "type": "object"
+          },
+          "replies": {
+            "type": "array"
+          },
+          "updatedAt": {
+            "type": "number"
+          }
+        },
+        "required": ["id", "category", "triggers", "counterparts"],
+        "additionalProperties": true
+      }
+    },
+    "dialogue_library": {
+      "path": "dialogue_library/{dialogueId}",
+      "access": {
+        "read": "true",
+        "write": "true"
+      },
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "numericId": {
+            "type": "number"
+          },
+          "turkishTitle": {
+            "type": "string"
+          },
+          "triggers": {
+            "type": "array"
+          },
+          "category": {
+            "type": "string"
+          },
+          "categoryLabel": {
+            "type": "string"
+          },
+          "turkishResponse": {
+            "type": "string"
+          },
+          "translations": {
+            "type": "object"
+          },
+          "followUpIds": {
+            "type": "array"
+          },
+          "updatedAt": {
+            "type": "number"
+          }
+        },
+        "required": ["id", "turkishTitle", "triggers", "category", "turkishResponse", "translations"],
+        "additionalProperties": true
+      }
+    }
+  }
+}

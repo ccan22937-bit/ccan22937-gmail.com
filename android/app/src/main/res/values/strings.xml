@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Sensei</string>
+    <string name="title_activity_main">Sensei</string>
+    <string name="package_name">com.sensei.bingelingo</string>
+    <string name="custom_url_scheme">com.sensei.bingelingo</string>
+    <string name="server_client_id">476796648315.apps.googleusercontent.com</string>
+</resources>

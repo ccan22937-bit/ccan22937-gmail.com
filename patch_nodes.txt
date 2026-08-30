@@ -1,0 +1,59 @@
+        {days.map((day, index) => {
+          const isChestDay = day % 5 === 0;
+          const isTestDay = !isChestDay && (day % 3 === 0);
+          const isUnlocked = unlockedLevels.includes(day);
+          const isCurrent = day === currentDay && isUnlocked;
+          const isCompleted = isUnlocked && day < currentDay;
+          
+          // Calculate an offset to make a snake-like path
+          const offset = Math.sin(index * 0.5) * 60;
+
+          return (
+            <div 
+              key={day} 
+              className="relative flex justify-center mb-8 w-full"
+              style={{ transform: `translateX(${offset}px)` }}
+            >
+              {/* Small dots representing the path */}
+              {index > 0 && (
+                <div className="absolute -top-10 left-1/2 -z-10 flex flex-col gap-2 -translate-x-1/2">
+                   <div className="w-2.5 h-2.5 rounded-full bg-white/10 shadow-[0_0_5px_rgba(0,240,255,0.2)]"></div>
+                   <div className="w-2.5 h-2.5 rounded-full bg-white/10 shadow-[0_0_5px_rgba(0,240,255,0.2)]"></div>
+                </div>
+              )}
+              
+              <button
+                onClick={() => {
+                  if (!isUnlocked) {
+                    setSelectedLockedDay(day);
+                  } else if (isChestDay && day === currentDay) {
+                    setSelectedChestDay(day);
+                  } else if (isChestDay && isCompleted) {
+                    // Do nothing
+                  } else {
+                    onSelectDay(day);
+                  }
+                }}
+                className={cn(
+                  "relative w-20 h-20 rounded-full flex items-center justify-center border-b-8 active:border-b-0 active:translate-y-2 transition-all duration-150 z-10",
+                  isCompleted ? "bg-[#00F0FF]/20 border-[#00F0FF]/50 text-[#00F0FF] shadow-[0_0_15px_rgba(0,240,255,0.4)] cursor-pointer" :
+                  isCurrent ? "bg-[#00F0FF] border-[#00A0AA] text-black shadow-[0_0_30px_rgba(0,240,255,0.8)] scale-110 cursor-pointer" :
+                  isUnlocked ? "bg-[#00F0FF]/10 border-[#00F0FF]/30 text-white shadow-[0_0_10px_rgba(0,240,255,0.2)] cursor-pointer" :
+                  "bg-[#1A1A24] border-gray-700 text-gray-500 opacity-80 cursor-pointer"
+                )}
+              >
+                {!isUnlocked ? (
+                  <div className="flex flex-col items-center justify-center gap-0.5 mt-1">
+                    <Lock size={22} className="mb-0.5 opacity-60" />
+                    <div className="flex items-center gap-0.5 bg-black/60 border border-white/10 px-1.5 py-0.5 rounded-full shadow-sm">
+                      <span className="text-[10px] font-bold text-gray-300">10</span>
+                      <Star size={10} fill="currentColor" className="text-[#FFD700]" />
+                    </div>
+                  </div>
+                ) : isChestDay ? (
+                  <Gift fill="currentColor" size={32} className={isCurrent ? "text-black" : "text-[#00F0FF] drop-shadow-[0_0_10px_rgba(0,240,255,0.8)]"} />
+                ) : isTestDay ? (
+                  <Star fill="currentColor" size={32} className={isCurrent ? "text-black" : "text-[#FFD700] drop-shadow-[0_0_10px_rgba(255,215,0,0.8)]"} />
+                ) : (
+                  <span className="font-extrabold text-2xl">{day}</span>
+                )}

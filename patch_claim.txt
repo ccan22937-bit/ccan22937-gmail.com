@@ -1,0 +1,6 @@
+              onClaimChest={(day, reward) => {
+                const newHearts = Math.min(15, hearts + reward);
+                const newUnlocked = Array.from(new Set([...unlockedLevels, day + 1]));
+                const newCurrentDay = Math.max(currentDay, day + 1);
+                saveProgress(newCurrentDay, newHearts, stars, newUnlocked);
+              }}

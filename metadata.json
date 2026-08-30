@@ -1,0 +1,6 @@
+{
+  "name": "SenSey BingeLingo",
+  "description": "Her gün seçtiğin kelimelerle, sesli yapay zeka Sensei koçu ve hibrit cümlelerle hızlı ve etkili yabancı dil öğren.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -2,7 +2,12 @@ package com.sensei.bingelingo.ai
 
 import android.content.Context
 import android.net.Uri
-import com.google.mediapipe.tasks.genai.llminference.LlmInference
+import com.google.ai.edge.litertlm.Backend
+import com.google.ai.edge.litertlm.Conversation
+import com.google.ai.edge.litertlm.ConversationConfig
+import com.google.ai.edge.litertlm.Engine
+import com.google.ai.edge.litertlm.EngineConfig
+import com.google.ai.edge.litertlm.SamplerConfig
 import kotlinx.coroutines.*
 import java.io.File
 import java.io.FileOutputStream
@@ -11,15 +16,13 @@ import java.io.InputStream
 /**
  * LiteRTLMEngine
  * 
- * Manages On-Device Gemma 3 / LiteRT LLM Model strictly inside Sensei's Private App Storage (`context.filesDir/models/`).
- * 
- * Official Google MediaPipe Tasks GenAI (LiteRT On-Device Runtime) Compliance:
- * - LlmInferenceOptions with modelPath & maxTokens
- * - LlmInference.createFromOptions(context, options) on background coroutine (Dispatchers.IO)
- * - Zero mock / zero simulated inference. Raises MODEL_NOT_LOADED if model is missing or uninitialized.
+ * Manages On-Device Gemma 3 / LiteRT LLM Model strictly using official Google AI Edge LiteRT-LM API.
+ * Uses com.google.ai.edge.litertlm.* with Backend.GPU() exclusively.
+ * ZERO CPU fallback, zero mock data.
  */
 class LiteRTLMEngine(private val context: Context) {
-    private var llmInference: LlmInference? = null
+    private var engine: Engine? = null
+    private var conversation: Conversation? = null
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     private var isGpuActive = true
@@ -97,11 +100,11 @@ class LiteRTLMEngine(private val context: Context) {
 
     /**
      * Initializes LiteRT-LM Engine using official EngineConfig and Backend.GPU()
-     * Executed strictly on background coroutine (Dispatchers.IO) to keep UI thread fluid.
+     * Strictly on GPU - NO CPU fallback.
      */
     suspend fun initialize(useGpu: Boolean = true): Boolean = withContext(Dispatchers.IO) {
         try {
-            isGpuActive = useGpu
+            isGpuActive = true
             lastError = null
 
             if (!hasValidPrivateModel()) {
@@ -114,20 +117,31 @@ class LiteRTLMEngine(private val context: Context) {
 
             close()
 
-            // Official Google MediaPipe Tasks GenAI LlmInference Options
-            val options = LlmInference.LlmInferenceOptions.builder()
-                .setModelPath(targetModel.absolutePath)
-                .setMaxTokens(1024)
-                .build()
+            // Official Google AI Edge LiteRT-LM Engine Configuration for GPU
+            val config = EngineConfig(
+                modelPath = targetModel.absolutePath,
+                backend = Backend.GPU()
+            )
 
-            val newEngine = LlmInference.createFromOptions(context, options)
+            val newEngine = Engine(config)
+            engine = newEngine
 
-            llmInference = newEngine
+            // Initialize active conversation session with standard Gemma 3 sampler
+            val conversationConfig = ConversationConfig(
+                samplerConfig = SamplerConfig(
+                    temperature = 0.7f,
+                    topK = 40
+                )
+            )
+            conversation = newEngine.createConversation(conversationConfig)
+
             isModelInitialized = true
             true
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             e.printStackTrace()
             isModelInitialized = false
+            engine = null
+            conversation = null
             lastError = "ENGINE_INIT_FAILED: ${e.localizedMessage ?: e.javaClass.simpleName}"
             false
         }
@@ -135,7 +149,7 @@ class LiteRTLMEngine(private val context: Context) {
 
     /**
      * Imports genuine .litertlm model from Android Storage Access Framework (SAF) URI
-     * (e.g. from user's Download folder) directly into Sensei private storage without internet download.
+     * directly into Sensei private storage without internet download.
      */
     fun importModelFromUri(
         uri: Uri,
@@ -209,7 +223,6 @@ class LiteRTLMEngine(private val context: Context) {
 
                 var renamed = tempFile.renameTo(targetFile)
                 if (!renamed || !targetFile.exists()) {
-                    // Fallback copy if filesystem rename was restricted
                     tempFile.inputStream().use { inStream ->
                         targetFile.outputStream().use { outStream ->
                             inStream.copyTo(outStream)
@@ -226,8 +239,8 @@ class LiteRTLMEngine(private val context: Context) {
                 isImporting = false
                 importProgressPercent = 100
 
-                // Initialize Engine immediately on GPU in background
-                val initSuccess = initialize(useGpu = isGpuActive)
+                // Initialize Engine strictly on GPU
+                val initSuccess = initialize(useGpu = true)
 
                 withContext(Dispatchers.Main) {
                     if (initSuccess) {
@@ -254,7 +267,7 @@ class LiteRTLMEngine(private val context: Context) {
     }
 
     /**
-     * Executes real On-Device Gemma 3 / LiteRT inference using LlmInference.
+     * Executes real On-Device Gemma 3 / LiteRT inference using LiteRT-LM Engine on GPU.
      * ZERO MOCK / ZERO FALLBACK. If model is not ready, strictly throws MODEL_NOT_LOADED.
      */
     fun generateStream(
@@ -265,26 +278,38 @@ class LiteRTLMEngine(private val context: Context) {
     ) {
         scope.launch {
             try {
-                if (!isModelInitialized || llmInference == null) {
-                    val initOk = initialize(useGpu = isGpuActive)
-                    if (!initOk || llmInference == null) {
-                        onError("MODEL_NOT_LOADED: Gemma 3 modeli belleğe yüklenemedi. Lütfen önce Download klasöründeki .litertlm modelini seçin.")
+                if (!isModelInitialized || conversation == null) {
+                    val initOk = initialize(useGpu = true)
+                    if (!initOk || conversation == null) {
+                        onError("MODEL_NOT_LOADED: Gemma 3 GPU motoru başlatılamadı ($lastError). Lütfen model dosyasını kontrol edin.")
                         return@launch
                     }
                 }
 
-                val currentInference = llmInference
-                if (currentInference == null) {
-                    onError("MODEL_NOT_LOADED: Aktif LlmInference motoru bulunamadı.")
+                val activeConv = conversation
+                if (activeConv == null) {
+                    onError("MODEL_NOT_LOADED: Aktif LiteRT-LM Conversation oturumu bulunamadı.")
                     return@launch
                 }
 
-                val response = currentInference.generateResponse(prompt)
-                onToken(response)
-                onComplete(response)
+                val fullResponse = StringBuilder()
+                activeConv.sendMessageAsync(prompt).collect { messageToken ->
+                    val tokenText = messageToken.text ?: ""
+                    if (tokenText.isNotEmpty()) {
+                        fullResponse.append(tokenText)
+                        withContext(Dispatchers.Main) {
+                            onToken(tokenText)
+                        }
+                    }
+                }
 
-            } catch (e: Exception) {
-                onError("MODEL_NOT_LOADED: ${e.localizedMessage ?: "Beklenmeyen donanım hatası"}")
+                val finalOutput = fullResponse.toString()
+                withContext(Dispatchers.Main) {
+                    onComplete(finalOutput)
+                }
+
+            } catch (e: Throwable) {
+                onError("INFERENCE_FAILED: ${e.localizedMessage ?: e.javaClass.simpleName}")
             }
         }
     }
@@ -299,18 +324,20 @@ class LiteRTLMEngine(private val context: Context) {
     }
 
     fun isGpu(): Boolean = isGpuActive
-    fun isReady(): Boolean = isModelInitialized && llmInference != null
+    fun isReady(): Boolean = isModelInitialized && engine != null
     fun isCurrentlyImporting(): Boolean = isImporting
     fun getImportProgress(): Int = importProgressPercent
     fun getLastError(): String? = lastError
 
     fun close() {
         try {
-            llmInference?.close()
+            conversation?.close()
+            engine?.close()
         } catch (e: Exception) {
             e.printStackTrace()
         } finally {
-            llmInference = null
+            conversation = null
+            engine = null
             isModelInitialized = false
         }
     }

@@ -39,8 +39,8 @@ android {
 }
 
 dependencies {
-    // Official Google MediaPipe Tasks GenAI (On-Device LLM & LiteRT runtime)
-    implementation("com.google.mediapipe:tasks-genai:0.10.14")
+    // Official Google AI Edge LiteRT-LM Android Engine (Supports .litertlm & Gemma 3 on GPU)
+    implementation("com.google.ai.edge.litertlm:litertlm-android:0.16.1")
 
     // Google Play Services Auth (Native Google Sign-In)
     implementation("com.google.android.gms:play-services-auth:20.7.0")

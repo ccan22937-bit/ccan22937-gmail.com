@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.webkit.PermissionRequest
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebSettings
@@ -14,6 +15,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.sensei.bingelingo.ai.LiteRTLMEngine
 import com.sensei.bingelingo.ai.LiteRTLMBridge
+import com.sensei.bingelingo.audio.NativeTTSBridge
 import com.sensei.bingelingo.auth.NativeAuthBridge
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -22,7 +24,7 @@ import kotlinx.coroutines.launch
  * MainActivity
  * 
  * Host activity providing Android WebView, Storage Access Framework (SAF)
- * for LiteRT-LM, and Native Google Authentication.
+ * for LiteRT-LM, Native Google Authentication, and Native TextToSpeech.
  */
 class MainActivity : AppCompatActivity() {
 
@@ -31,6 +33,7 @@ class MainActivity : AppCompatActivity() {
         private set
     private lateinit var litertBridge: LiteRTLMBridge
     private lateinit var authBridge: NativeAuthBridge
+    private lateinit var ttsBridge: NativeTTSBridge
 
     private var fileUploadCallback: ValueCallback<Array<Uri>>? = null
 
@@ -136,10 +139,11 @@ class MainActivity : AppCompatActivity() {
 
         webView = findViewById(R.id.webView)
 
-        // 1. Initialize LiteRT-LM Engine, Bridges & Native Auth
+        // 1. Initialize LiteRT-LM Engine, Bridges, Native Auth & Native TTS
         litertEngine = LiteRTLMEngine(applicationContext)
         litertBridge = LiteRTLMBridge(this, webView, litertEngine)
         authBridge = NativeAuthBridge(this, webView)
+        ttsBridge = NativeTTSBridge(this, webView)
 
         // 2. Configure WebView
         webView.settings.apply {
@@ -159,6 +163,12 @@ class MainActivity : AppCompatActivity() {
         }
 
         webView.webChromeClient = object : WebChromeClient() {
+            override fun onPermissionRequest(request: PermissionRequest?) {
+                runOnUiThread {
+                    request?.grant(request.resources)
+                }
+            }
+
             override fun onShowFileChooser(
                 view: WebView?,
                 filePathCallback: ValueCallback<Array<Uri>>?,
@@ -186,9 +196,11 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // 3. Bind Official LiteRT-LM & Native Auth JavaScript Interface Bridges
+        // 3. Bind Official LiteRT-LM, Native Auth & Native TTS JavaScript Interface Bridges
         webView.addJavascriptInterface(litertBridge, "LiteRTLM")
         webView.addJavascriptInterface(authBridge, "SenseiAuth")
+        webView.addJavascriptInterface(ttsBridge, "SenseiTTS")
+        webView.addJavascriptInterface(ttsBridge, "SenseiAudio")
 
         // 4. Pre-warm Gemma on GPU if .litertlm is already copied
         lifecycleScope.launch(Dispatchers.IO) {
@@ -210,6 +222,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        ttsBridge.shutdown()
         litertEngine.close()
     }
 }

@@ -402,6 +402,29 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading, isRecording]);
 
+  // Hook Native Android TTS events for instant UI synchronization
+  useEffect(() => {
+    (window as any).__onNativeTTSStart = (utteranceId: string) => {
+      if (currentPlayingIdRef.current) {
+        setActiveAudioPlayingId(currentPlayingIdRef.current);
+      }
+    };
+    (window as any).__onNativeTTSDone = () => {
+      currentPlayingIdRef.current = null;
+      setActiveAudioPlayingId(null);
+    };
+    (window as any).__onNativeTTSError = () => {
+      currentPlayingIdRef.current = null;
+      setActiveAudioPlayingId(null);
+    };
+
+    return () => {
+      delete (window as any).__onNativeTTSStart;
+      delete (window as any).__onNativeTTSDone;
+      delete (window as any).__onNativeTTSError;
+    };
+  }, []);
+
   // Web Speech Recognition / Media Stream cleanup on unmount
   useEffect(() => {
     return () => {
@@ -427,7 +450,7 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
     if (directAudioUrl) return directAudioUrl;
     const langCode = getLanguageCode(langName) || 'ja';
     const shortLang = langCode.split('-')[0];
-    return `/api/tts?text=${encodeURIComponent(text)}&lang=${encodeURIComponent(shortLang)}`;
+    return `https://translate.google.com/translate_tts?ie=UTF-8&tl=${encodeURIComponent(shortLang)}&client=tw-ob&q=${encodeURIComponent(text)}`;
   };
 
   /**
@@ -490,10 +513,22 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
       return;
     }
 
-    // Case B: Sensei & Card Phrases - Client-Side Native Device Speech Engine
+    // Case B: Sensei & Card Phrases
     const phraseText = textToSpeak || '';
     const targetLangCode = getLanguageCode(langName) || 'ja-JP';
 
+    // B1. PRIMARY: Native Android TextToSpeech Bridge (Zero lag, 100% offline, crystal clear)
+    const nativeTTS = (window as any).SenseiTTS || (window as any).SenseiAudio;
+    if (phraseText && nativeTTS && typeof nativeTTS.speak === 'function') {
+      try {
+        nativeTTS.speak(phraseText, targetLangCode, 0.85, id);
+        return;
+      } catch (e) {
+        console.warn('Native SenseiTTS bridge error:', e);
+      }
+    }
+
+    // B2. SECONDARY: Client-Side Native Device Web Speech Synthesis
     if (phraseText && typeof window !== 'undefined' && 'speechSynthesis' in window) {
       try {
         window.speechSynthesis.cancel();
@@ -552,7 +587,7 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
       }
     }
 
-    // Case C: Fallback to stream audio URL
+    // Case C: Universal Direct Audio Stream Fallback
     playStreamFallback(id, audioUrl || getAudioUrl(phraseText, undefined, langName));
   };
 
@@ -594,6 +629,13 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
   };
 
   const stopAudioPlayback = () => {
+    try {
+      const nativeTTS = (window as any).SenseiTTS || (window as any).SenseiAudio;
+      if (nativeTTS && typeof nativeTTS.stop === 'function') {
+        nativeTTS.stop();
+      }
+    } catch (e) {}
+
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       try {
         window.speechSynthesis.cancel();

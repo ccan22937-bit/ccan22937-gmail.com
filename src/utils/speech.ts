@@ -96,7 +96,18 @@ export const playAudio = (
   const targetLangCode = getLanguageCode(language);
   const langShort = targetLangCode.split('-')[0].toLowerCase();
 
-  // 1. PRIMARY METHOD: Pure Device-Native Web Speech Synthesis (100% Off-API / Local Device TTS)
+  // 1. PRIMARY NATIVE METHOD: Native Android TextToSpeech Bridge (Zero-delay, 100% Offline, Crystal Clear)
+  const nativeTTS = (window as any).SenseiTTS || (window as any).SenseiAudio;
+  if (nativeTTS && typeof nativeTTS.speak === 'function') {
+    try {
+      nativeTTS.speak(textToSpeak, targetLangCode, rate, `tts_${Date.now()}`);
+      return;
+    } catch (e) {
+      console.warn("Native SenseiTTS bridge error:", e);
+    }
+  }
+
+  // 2. SECONDARY METHOD: Web Speech Synthesis (for Chrome, Safari, Web Browsers)
   if ('speechSynthesis' in window) {
     try {
       window.speechSynthesis.cancel(); // Reset previous speech
@@ -151,16 +162,23 @@ export const playAudio = (
     }
   }
 
-  // 2. FALLBACK (Only if device has no TTS engine or fails)
+  // 3. UNIVERSAL FALLBACK (Direct Client-Side Cloud Audio Stream - works in any WebView/browser without backend)
   fallbackToAudioStream();
 
   function fallbackToAudioStream() {
     try {
-      const proxyUrl = `/api/tts?text=${encodeURIComponent(textToSpeak)}&lang=${langShort}`;
-      const audio = new Audio(proxyUrl);
-      audio.playbackRate = Math.max(0.4, Math.min(rate, 1.5));
+      // Direct CDN audio URL that works both in web and standalone file:/// APK without local server
+      const encodedText = encodeURIComponent(textToSpeak);
+      const directUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${langShort}&client=tw-ob&q=${encodedText}`;
+      const audio = new Audio(directUrl);
+      audio.playbackRate = Math.max(0.5, Math.min(rate, 1.5));
       activeAudio = audio;
-      audio.play().catch(() => {});
+      audio.play().catch(() => {
+        // Fallback to relative endpoint if online CDN fails
+        const proxyUrl = `/api/tts?text=${encodedText}&lang=${langShort}`;
+        const fallbackAudio = new Audio(proxyUrl);
+        fallbackAudio.play().catch(() => {});
+      });
     } catch (e) {}
   }
 };

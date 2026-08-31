@@ -121,7 +121,7 @@ export default function App() {
     let data: any = {};
     try {
       const fetchDoc = getDoc(doc(db, "users", u.uid));
-      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 8000));
+      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 2500));
       const userDoc = await Promise.race([fetchDoc, timeout]) as any;
       
       if (userDoc && userDoc.exists && userDoc.exists()) {
@@ -329,6 +329,19 @@ export default function App() {
     // Initialize native GoogleAuth plugin
     initGoogleAuth();
 
+    // Check cached session first for instant seamless access
+    const cachedSessionStr = localStorage.getItem('local_user_session');
+    if (cachedSessionStr && !isLoggedOut) {
+      try {
+        const cachedUser = JSON.parse(cachedSessionStr);
+        if (cachedUser && cachedUser.uid) {
+          loadUserData(cachedUser as User);
+        }
+      } catch (e) {
+        console.warn("Cached session parse error:", e);
+      }
+    }
+
     // Check if returning from OAuth redirect
     checkRedirectAuth().then((redirectUser) => {
       if (redirectUser && !isLoggedOut) {
@@ -341,6 +354,16 @@ export default function App() {
         setAuthLoading(true);
         await loadUserData(currentUser);
       } else {
+        const sessionStr = localStorage.getItem('local_user_session');
+        if (sessionStr && !isLoggedOut) {
+          try {
+            const localU = JSON.parse(sessionStr);
+            if (localU && localU.uid) {
+              await loadUserData(localU as User);
+              return;
+            }
+          } catch (e) {}
+        }
         setUser(null);
         setAuthLoading(false);
       }

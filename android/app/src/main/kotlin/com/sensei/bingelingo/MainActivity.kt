@@ -148,8 +148,14 @@ class MainActivity : AppCompatActivity() {
             databaseEnabled = true
             allowFileAccess = true
             allowContentAccess = true
+            allowFileAccessFromFileURLs = true
+            allowUniversalAccessFromFileURLs = true
             mediaPlaybackRequiresUserGesture = false
+            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
             cacheMode = WebSettings.LOAD_DEFAULT
+            loadsImagesAutomatically = true
+            useWideViewPort = true
+            loadWithOverviewMode = true
         }
 
         webView.webChromeClient = object : WebChromeClient() {
@@ -174,7 +180,11 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-        webView.webViewClient = WebViewClient()
+        webView.webViewClient = object : WebViewClient() {
+            override fun onReceivedError(view: WebView?, errorCode: Int, description: String?, failingUrl: String?) {
+                android.util.Log.e("SenseiWebView", "WebView Error ($errorCode): $description on $failingUrl")
+            }
+        }
 
         // 3. Bind Official LiteRT-LM & Native Auth JavaScript Interface Bridges
         webView.addJavascriptInterface(litertBridge, "LiteRTLM")
@@ -187,8 +197,15 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // 5. Load App
-        webView.loadUrl("file:///android_asset/dist/index.html")
+        // 5. Load App with fallback check
+        val hasDist = try {
+            assets.open("dist/index.html").close()
+            true
+        } catch (e: Exception) {
+            false
+        }
+        val targetUrl = if (hasDist) "file:///android_asset/dist/index.html" else "file:///android_asset/public/index.html"
+        webView.loadUrl(targetUrl)
     }
 
     override fun onDestroy() {

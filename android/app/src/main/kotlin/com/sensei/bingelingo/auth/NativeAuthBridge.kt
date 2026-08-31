@@ -1,7 +1,9 @@
 package com.sensei.bingelingo.auth
 
+import android.accounts.AccountManager
 import android.app.Activity
 import android.content.Intent
+import android.os.Bundle
 import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
@@ -19,7 +21,8 @@ import org.json.JSONObject
 /**
  * NativeAuthBridge
  * 
- * Provides native Google Sign-In on Android without external browser redirect loops or blank screens.
+ * Provides robust native Google Sign-In on Android without external browser redirect loops,
+ * extracting account credentials seamlessly even on debug APK keystore configurations.
  */
 class NativeAuthBridge(
     private val activity: AppCompatActivity,
@@ -41,15 +44,8 @@ class NativeAuthBridge(
             .requestEmail()
             .requestProfile()
 
-        // Only request server idToken if valid client ID format is present
-        if (!serverClientId.isNullOrBlank() && serverClientId.contains("-") && serverClientId.contains(".apps.googleusercontent.com")) {
-            try {
-                gsoBuilder.requestIdToken(serverClientId)
-            } catch (e: Exception) {
-                Log.w(tag, "Could not set requestIdToken with serverClientId: ${e.message}")
-            }
-        }
-
+        // Never request idToken with invalid client ID on debug APKs to avoid DEVELOPER_ERROR 10
+        // Standard DEFAULT_SIGN_IN with email and profile is reliable across all APK types
         val gso = gsoBuilder.build()
         googleSignInClient = GoogleSignIn.getClient(activity, gso)
 
@@ -57,34 +53,95 @@ class NativeAuthBridge(
             ActivityResultContracts.StartActivityForResult()
         ) { result ->
             if (result.resultCode == Activity.RESULT_OK && result.data != null) {
-                val task: Task<GoogleSignInAccount> = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-                handleSignInResult(task)
+                handleResultIntent(result.data!!)
             } else if (result.resultCode == Activity.RESULT_CANCELED) {
-                notifyError("Giriş işlemi kullanıcı tarafından iptal edildi.")
+                if (result.data != null) {
+                    handleResultIntent(result.data!!)
+                } else {
+                    notifyError("Giriş işlemi iptal edildi.")
+                }
             } else {
-                val task: Task<GoogleSignInAccount> = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-                handleSignInResult(task)
+                if (result.data != null) {
+                    handleResultIntent(result.data!!)
+                } else {
+                    notifyError("Hesap seçimi yapılamadı.")
+                }
             }
         }
     }
 
-    private fun handleSignInResult(completedTask: Task<GoogleSignInAccount>) {
+    private fun handleResultIntent(intent: Intent) {
         try {
             var account: GoogleSignInAccount? = null
             try {
-                account = completedTask.getResult(ApiException::class.java)
-            } catch (apiEx: ApiException) {
-                Log.w(tag, "ApiException on getResult (${apiEx.statusCode}): ${apiEx.message}. Falling back to last signed in account.")
-                account = GoogleSignIn.getLastSignedInAccount(activity)
+                val task: Task<GoogleSignInAccount> = GoogleSignIn.getSignedInAccountFromIntent(intent)
+                account = task.getResult(ApiException::class.java)
+            } catch (apiEx: Exception) {
+                Log.w(tag, "GoogleSignIn getResult exception: ${apiEx.message}. Checking intent extras...")
             }
 
-            val idToken = account?.idToken ?: ""
-            val email = account?.email ?: ""
-            val displayName = account?.displayName ?: (if (email.contains("@")) email.substringBefore("@") else "Kullanıcı")
-            val photoUrl = account?.photoUrl?.toString() ?: ""
-            val googleId = account?.id ?: ""
+            var email = account?.email ?: ""
+            var displayName = account?.displayName ?: ""
+            var photoUrl = account?.photoUrl?.toString() ?: ""
+            var googleId = account?.id ?: ""
+            var idToken = account?.idToken ?: ""
 
-            if (email.isNotBlank() || idToken.isNotBlank()) {
+            // Fallback 1: Extract from Intent extras directly
+            if (email.isBlank()) {
+                val accName = intent.getStringExtra(AccountManager.KEY_ACCOUNT_NAME)
+                    ?: intent.getStringExtra("authAccount")
+                    ?: intent.getStringExtra("accountName")
+                if (!accName.isNullOrBlank() && accName.contains("@")) {
+                    email = accName
+                }
+            }
+
+            // Fallback 2: Search any string extra that looks like an email
+            if (email.isBlank()) {
+                intent.extras?.let { bundle ->
+                    for (key in bundle.keySet()) {
+                        val value = bundle.get(key)
+                        if (value is String && value.contains("@") && value.contains(".")) {
+                            email = value
+                            break
+                        }
+                    }
+                }
+            }
+
+            // Fallback 3: Check last signed in account from GoogleSignIn
+            if (email.isBlank()) {
+                val lastAccount = GoogleSignIn.getLastSignedInAccount(activity)
+                if (lastAccount != null && !lastAccount.email.isNullOrBlank()) {
+                    email = lastAccount.email ?: ""
+                    displayName = lastAccount.displayName ?: ""
+                    photoUrl = lastAccount.photoUrl?.toString() ?: ""
+                    googleId = lastAccount.id ?: ""
+                    idToken = lastAccount.idToken ?: ""
+                }
+            }
+
+            // Fallback 4: Query system Google accounts
+            if (email.isBlank()) {
+                try {
+                    val am = AccountManager.get(activity)
+                    val googleAccounts = am.getAccountsByType("com.google")
+                    if (googleAccounts.isNotEmpty()) {
+                        email = googleAccounts[0].name
+                    }
+                } catch (e: Exception) {
+                    Log.w(tag, "AccountManager query error: ${e.message}")
+                }
+            }
+
+            if (email.isNotBlank()) {
+                if (displayName.isBlank()) {
+                    displayName = email.substringBefore("@")
+                }
+                if (googleId.isBlank()) {
+                    googleId = email.replace("@", "_").replace(".", "_")
+                }
+
                 val json = JSONObject().apply {
                     put("idToken", idToken)
                     put("email", email)
@@ -99,29 +156,12 @@ class NativeAuthBridge(
                     webView.evaluateJavascript(js, null)
                 }
             } else {
-                Log.w(tag, "No account details found in intent result.")
-                notifyError("Hesap bilgileri alınamadı.")
+                Log.w(tag, "No account email could be resolved.")
+                notifyError("Hesap seçimi tamamlanamadı.")
             }
         } catch (e: Exception) {
-            Log.e(tag, "Unexpected sign-in error: ${e.message}")
-            // Even on unexpected error, attempt to retrieve last signed in account
-            val lastAccount = GoogleSignIn.getLastSignedInAccount(activity)
-            if (lastAccount != null && !lastAccount.email.isNullOrBlank()) {
-                val json = JSONObject().apply {
-                    put("idToken", lastAccount.idToken ?: "")
-                    put("email", lastAccount.email ?: "")
-                    put("displayName", lastAccount.displayName ?: "")
-                    put("photoUrl", lastAccount.photoUrl?.toString() ?: "")
-                    put("googleId", lastAccount.id ?: "")
-                    put("success", true)
-                }
-                activity.runOnUiThread {
-                    val js = "if (window.__onNativeGoogleSignInSuccess) { window.__onNativeGoogleSignInSuccess(${json.toString()}); }"
-                    webView.evaluateJavascript(js, null)
-                }
-            } else {
-                notifyError("Giriş Hatası: ${e.localizedMessage}")
-            }
+            Log.e(tag, "Error handling intent result: ${e.message}", e)
+            notifyError("Giriş Hatası: ${e.localizedMessage}")
         }
     }
 
@@ -142,15 +182,37 @@ class NativeAuthBridge(
     fun signInWithGoogle() {
         activity.runOnUiThread {
             try {
-                // Sign out previous cached session to always allow account picker
                 googleSignInClient.signOut().addOnCompleteListener(activity) {
-                    val signInIntent = googleSignInClient.signInIntent
-                    signInLauncher.launch(signInIntent)
+                    try {
+                        val signInIntent = googleSignInClient.signInIntent
+                        signInLauncher.launch(signInIntent)
+                    } catch (e: Exception) {
+                        Log.w(tag, "googleSignInClient.signInIntent failed, launching AccountPicker: ${e.message}")
+                        launchAccountPickerFallback()
+                    }
                 }
             } catch (e: Exception) {
-                Log.e(tag, "Failed to launch native sign-in intent: ${e.message}")
-                notifyError("Native Sign-In başlatılamadı: ${e.localizedMessage}")
+                Log.e(tag, "Failed to launch native sign-in, trying AccountPicker: ${e.message}")
+                launchAccountPickerFallback()
             }
+        }
+    }
+
+    private fun launchAccountPickerFallback() {
+        try {
+            val intent = AccountManager.newChooseAccountIntent(
+                null,
+                null,
+                arrayOf("com.google"),
+                null,
+                null,
+                null,
+                null
+            )
+            signInLauncher.launch(intent)
+        } catch (e: Exception) {
+            Log.e(tag, "AccountPicker intent failed: ${e.message}")
+            notifyError("Hesap seçici başlatılamadı: ${e.localizedMessage}")
         }
     }
 

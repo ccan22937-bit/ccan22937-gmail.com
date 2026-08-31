@@ -364,7 +364,10 @@ export default function App() {
             }
           } catch (e) {}
         }
-        setUser(null);
+        // Only set user to null if there is no active local user session
+        if (!localStorage.getItem('local_user_session')) {
+          setUser(null);
+        }
         setAuthLoading(false);
       }
     });

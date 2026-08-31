@@ -128,8 +128,6 @@ class NativeTTSBridge(
         activity.runOnUiThread {
             try {
                 tts?.stop()
-                val js = "if (window.__onNativeTTSDone) { window.__onNativeTTSDone('stopped'); }"
-                webView.evaluateJavascript(js, null)
             } catch (e: Exception) {
                 Log.e(tag, "Error stopping TTS: ${e.message}")
             }

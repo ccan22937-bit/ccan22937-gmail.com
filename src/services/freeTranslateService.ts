@@ -191,11 +191,52 @@ export async function translateLiveFree(
     'ne yaptin': {
       'Japonca': { target: '何をしていましたか？', romaji: 'Nani o shite imashita ka?', native: 'Ne yaptın?' },
       'İngilizce': { target: 'What did you do?', romaji: 'What did you do?', native: 'Ne yaptın?' },
-      'Almanca': { target: 'Was hast du gemacht?', romaji: 'Was hast du gemacht?', native: 'Ne yaptın?' }
+      'Almanca': { target: 'Was hast du gemacht?', romaji: 'Was hast du gemacht?', native: 'Ne yaptın?' },
+      'Fransızca': { target: "Qu'as-tu fait ?", romaji: "Qu'as-tu fait ?", native: 'Ne yaptın?' },
+      'İspanyolca': { target: '¿Qué hiciste?', romaji: '¿Qué hiciste?', native: 'Ne yaptın?' }
     },
     'ne yaptın': {
       'Japonca': { target: '何をしていましたか？', romaji: 'Nani o shite imashita ka?', native: 'Ne yaptın?' },
-      'İngilizce': { target: 'What did you do?', romaji: 'What did you do?', native: 'Ne yaptın?' }
+      'İngilizce': { target: 'What did you do?', romaji: 'What did you do?', native: 'Ne yaptın?' },
+      'Almanca': { target: 'Was hast du gemacht?', romaji: 'Was hast du gemacht?', native: 'Ne yaptın?' },
+      'Fransızca': { target: "Qu'as-tu fait ?", romaji: "Qu'as-tu fait ?", native: 'Ne yaptın?' },
+      'İspanyolca': { target: '¿Qué hiciste?', romaji: '¿Qué hiciste?', native: 'Ne yaptın?' }
+    },
+    'naptin': {
+      'Japonca': { target: '何をしていましたか？', romaji: 'Nani o shite imashita ka?', native: 'Naptın / Ne yaptın?' },
+      'İngilizce': { target: 'What did you do?', romaji: 'What did you do?', native: 'Naptın?' },
+      'Almanca': { target: 'Was hast du gemacht?', romaji: 'Was hast du gemacht?', native: 'Naptın?' }
+    },
+    'naptın': {
+      'Japonca': { target: '何をしていましたか？', romaji: 'Nani o shite imashita ka?', native: 'Naptın / Ne yaptın?' },
+      'İngilizce': { target: 'What did you do?', romaji: 'What did you do?', native: 'Naptın?' },
+      'Almanca': { target: 'Was hast du gemacht?', romaji: 'Was hast du gemacht?', native: 'Naptın?' }
+    },
+    'naptınız': {
+      'Japonca': { target: '何をされましたか？', romaji: 'Nani o saremashita ka?', native: 'Naptınız / Ne yaptınız?' },
+      'İngilizce': { target: 'What did you do?', romaji: 'What did you do?', native: 'Naptınız?' }
+    },
+    'ne yaptınız': {
+      'Japonca': { target: '何をされましたか？', romaji: 'Nani o saremashita ka?', native: 'Ne yaptınız?' },
+      'İngilizce': { target: 'What did you do?', romaji: 'What did you do?', native: 'Ne yaptınız?' }
+    },
+    'ne yapiyorsun': {
+      'Japonca': { target: '何をしていますか？', romaji: 'Nani o shite imasu ka?', native: 'Ne yapıyorsun?' },
+      'İngilizce': { target: 'What are you doing?', romaji: 'What are you doing?', native: 'Ne yapıyorsun?' },
+      'Almanca': { target: 'Was machst du?', romaji: 'Was machst du?', native: 'Ne yapıyorsun?' }
+    },
+    'ne yapıyorsun': {
+      'Japonca': { target: '何をしていますか？', romaji: 'Nani o shite imasu ka?', native: 'Ne yapıyorsun?' },
+      'İngilizce': { target: 'What are you doing?', romaji: 'What are you doing?', native: 'Ne yapıyorsun?' },
+      'Almanca': { target: 'Was machst du?', romaji: 'Was machst du?', native: 'Ne yapıyorsun?' }
+    },
+    'napiyorsun': {
+      'Japonca': { target: '何をしていますか？', romaji: 'Nani o shite imasu ka?', native: 'Napıyorsun?' },
+      'İngilizce': { target: 'What are you doing?', romaji: 'What are you doing?', native: 'Napıyorsun?' }
+    },
+    'napıyorsun': {
+      'Japonca': { target: '何をしていますか？', romaji: 'Nani o shite imasu ka?', native: 'Napıyorsun?' },
+      'İngilizce': { target: 'What are you doing?', romaji: 'What are you doing?', native: 'Napıyorsun?' }
     },
     'bugun ne yaptin': {
       'Japonca': { target: '今日は何をしましたか？', romaji: 'Kyou wa nani o shimashita ka?', native: 'Bugün ne yaptın?' },

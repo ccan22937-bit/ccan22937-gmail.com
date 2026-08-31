@@ -48,6 +48,7 @@ import {
   registerMediaRecorder, 
   forceGlobalAudioHardwareReset 
 } from '../utils/hardwareAudioReset';
+import { stopAudio } from '../utils/speech';
 import { VoiceRecorder } from './VoiceRecorder';
 import { ChatMessage, ChatMessageData } from './ChatMessage';
 import { 
@@ -187,7 +188,20 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
         const dynamicCards: DialogueSuggestion[] = [];
         const seen = new Set<string>();
 
-        // 1. FIRST PRIORITY: Direct word/phrase dictionary matches (e.g. "Selam" ➔ "こんにちは (Konnichiwa)", "やあ (Yaa)")
+        // 1. FIRST TOP PRIORITY: Instant accurate direct translation for the search term (Google Translate / Free Live Translation)
+        const transResult = await translateLiveFree(query, activeTargetLang, 'tr');
+        if (transResult && transResult.targetText && !seen.has(transResult.targetText)) {
+          const directCard: DialogueSuggestion = {
+            target: transResult.targetText,
+            romaji: transResult.romaji || transResult.targetText,
+            native: `${query} (${transResult.targetText})`,
+            category: transResult.isLiveTranslated ? '✨ Canlı Çeviri' : '📖 Sözlük',
+          };
+          seen.add(directCard.target);
+          dynamicCards.push(directCard);
+        }
+
+        // 2. SECOND PRIORITY: Direct word/phrase dictionary matches
         const dictMatches = searchComprehensiveDictionary(query, activeTargetLang);
         dictMatches.forEach(m => {
           if (!seen.has(m.target)) {
@@ -200,20 +214,6 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
             });
           }
         });
-
-        // 2. SECOND PRIORITY: Instant accurate direct translation for the search term
-        const transResult = await translateLiveFree(query, activeTargetLang, 'tr');
-        if (transResult && transResult.targetText && !seen.has(transResult.targetText)) {
-          const directCard: DialogueSuggestion = {
-            target: transResult.targetText,
-            romaji: transResult.romaji || transResult.targetText,
-            native: `${query} (${transResult.targetText})`,
-            category: transResult.isLiveTranslated ? '✨ Canlı Çeviri' : '📖 Sözlük',
-          };
-          seen.add(directCard.target);
-          // If no dictionary match existed, put translation first; otherwise append right after dictionary
-          dynamicCards.splice(dictMatches.length, 0, directCard);
-        }
 
         // 3. THIRD PRIORITY: Curated Master Cloud & Local Dialogue Library phrases
         const cloudMatches = await searchCloudDictionaryForLanguage(query, activeTargetLang);
@@ -402,20 +402,27 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading, isRecording]);
 
-  // Hook Native Android TTS events for instant UI synchronization
+  // Hook Native Android TTS events for instant WhatsApp/Instagram style UI synchronization
   useEffect(() => {
     (window as any).__onNativeTTSStart = (utteranceId: string) => {
-      if (currentPlayingIdRef.current) {
-        setActiveAudioPlayingId(currentPlayingIdRef.current);
+      const activeId = utteranceId || currentPlayingIdRef.current;
+      if (activeId) {
+        currentPlayingIdRef.current = activeId;
+        setActiveAudioPlayingId(activeId);
       }
     };
-    (window as any).__onNativeTTSDone = () => {
-      currentPlayingIdRef.current = null;
-      setActiveAudioPlayingId(null);
+    (window as any).__onNativeTTSDone = (utteranceId: string) => {
+      // Only clear if the finished utterance belongs to the current playing item or if unspecified
+      if (!utteranceId || utteranceId === currentPlayingIdRef.current) {
+        currentPlayingIdRef.current = null;
+        setActiveAudioPlayingId(null);
+      }
     };
-    (window as any).__onNativeTTSError = () => {
-      currentPlayingIdRef.current = null;
-      setActiveAudioPlayingId(null);
+    (window as any).__onNativeTTSError = (utteranceId: string) => {
+      if (!utteranceId || utteranceId === currentPlayingIdRef.current) {
+        currentPlayingIdRef.current = null;
+        setActiveAudioPlayingId(null);
+      }
     };
 
     return () => {
@@ -629,18 +636,7 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
   };
 
   const stopAudioPlayback = () => {
-    try {
-      const nativeTTS = (window as any).SenseiTTS || (window as any).SenseiAudio;
-      if (nativeTTS && typeof nativeTTS.stop === 'function') {
-        nativeTTS.stop();
-      }
-    } catch (e) {}
-
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      try {
-        window.speechSynthesis.cancel();
-      } catch (e) {}
-    }
+    stopAudio();
     if (currentAudioRef.current) {
       try {
         currentAudioRef.current.pause();

@@ -708,7 +708,7 @@ export function searchComprehensiveDictionary(
   targetLang: string = 'Japonca'
 ): { target: string; romaji: string; native: string; category?: string }[] {
   const clean = normalizeSearchString(query);
-  if (!clean || clean.length < 1) return [];
+  if (!clean || clean.length < 2) return [];
 
   const matchedItems: DictionaryItem[] = [];
 
@@ -719,14 +719,16 @@ export function searchComprehensiveDictionary(
     const normTarget = trans ? normalizeSearchString(trans.text) : '';
     const normPhonetic = trans ? normalizeSearchString(trans.phonetic) : '';
 
-    // Eşleşme Kontrolü (Türkçe, ID, Hedef Metin veya Okunuş içinde alt dize eşleşmesi)
-    if (
+    // Tam veya kelime öbeği eşleşmesi kontrolü (Kısa hecelerde yanlış eşleşmeyi engelle)
+    const isExact = normTr === clean || normId === clean || normTarget === clean || normPhonetic === clean;
+    const isPhraseContained = clean.length >= 3 && (
       normTr.includes(clean) || 
       normId.includes(clean) || 
       normTarget.includes(clean) || 
-      normPhonetic.includes(clean) ||
-      clean.split(' ').some(word => word.length >= 2 && (normTr.includes(word) || normTarget.includes(word)))
-    ) {
+      normPhonetic.includes(clean)
+    );
+
+    if (isExact || isPhraseContained) {
       matchedItems.push(item);
     }
   }

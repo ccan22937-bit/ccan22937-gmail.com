@@ -183,5 +183,28 @@ export const playAudio = (
   }
 };
 
+export const stopAudio = () => {
+  try {
+    const nativeTTS = (window as any).SenseiTTS || (window as any).SenseiAudio;
+    if (nativeTTS && typeof nativeTTS.stop === 'function') {
+      nativeTTS.stop();
+    }
+  } catch (e) {}
+
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch (e) {}
+  }
+
+  if (activeAudio) {
+    try {
+      activeAudio.pause();
+      activeAudio.currentTime = 0;
+    } catch (e) {}
+    activeAudio = null;
+  }
+};
+
 
 

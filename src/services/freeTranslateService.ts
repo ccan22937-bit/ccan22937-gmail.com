@@ -1,8 +1,7 @@
-// Client-side Free Translation Engine
-// Google Translate Web Endpoint & MyMemory Fallback with phonetic/romaji transliteration
+// Client-side Universal Free Translation Engine
+// Google Translate Multi-Endpoint & Fallback with high-accuracy phonetic/romaji transliteration
 
 import { searchComprehensiveDictionary } from '../data/localDictionary';
-import { MEGA_LIBRARY } from '../data/megaLibrary';
 
 export interface TranslationResult {
   sourceText: string;
@@ -15,7 +14,7 @@ export interface TranslationResult {
 }
 
 // Language Code Map for Google Translate & MyMemory
-const LANG_CODE_MAP: Record<string, { gCode: string; myMemory: string; ttsLang: string; name: string }> = {
+export const LANG_CODE_MAP: Record<string, { gCode: string; myMemory: string; ttsLang: string; name: string }> = {
   Japonca: { gCode: 'ja', myMemory: 'ja-JP', ttsLang: 'ja-JP', name: 'Japonca' },
   İngilizce: { gCode: 'en', myMemory: 'en-GB', ttsLang: 'en-US', name: 'İngilizce' },
   Almanca: { gCode: 'de', myMemory: 'de-DE', ttsLang: 'de-DE', name: 'Almanca' },
@@ -29,14 +28,45 @@ const LANG_CODE_MAP: Record<string, { gCode: string; myMemory: string; ttsLang: 
   Türkçe: { gCode: 'tr', myMemory: 'tr-TR', ttsLang: 'tr-TR', name: 'Türkçe' },
 };
 
-// Simple Kana to Romaji helper fallback for Japanese
-function simpleKanaToRomaji(text: string): string {
-  const map: Record<string, string> = {
+// Comprehensive Japanese Kana to Romaji converter for transliteration backup
+function kanaToRomajiComprehensive(text: string): string {
+  if (!text) return '';
+  
+  // Digraphs & combo kana
+  const combos: Record<string, string> = {
+    'きゃ': 'kya', 'きゅ': 'kyu', 'きょ': 'kyo',
+    'しゃ': 'sha', 'しゅ': 'shu', 'しょ': 'sho',
+    'ちゃ': 'cha', 'ちゅ': 'chu', 'ちょ': 'cho',
+    'にゃ': 'nya', 'にゅ': 'nyu', 'にょ': 'nyo',
+    'ひゃ': 'hya', 'ひゅ': 'hyu', 'ひょ': 'hyo',
+    'みゃ': 'mya', 'みゅ': 'myu', 'みょ': 'myo',
+    'りゃ': 'rya', 'りゅ': 'ryu', 'りょ': 'ryo',
+    'ぎゃ': 'gya', 'ぎゅ': 'gyu', 'ぎょ': 'gyo',
+    'じゃ': 'ja', 'じゅ': 'ju', 'じょ': 'jo',
+    'びゃ': 'bya', 'びゅ': 'byu', 'びょ': 'byo',
+    'ぴゃ': 'pya', 'ぴゅ': 'pyu', 'ぴょ': 'pyo',
+    'キャ': 'kya', 'キュ': 'kyu', 'キョ': 'kyo',
+    'シャ': 'sha', 'シュ': 'shu', 'ショ': 'sho',
+    'チャ': 'cha', 'チュ': 'chu', 'チョ': 'cho',
+    'ニャ': 'nya', 'ニュ': 'nyu', 'ニョ': 'nyo',
+    'ヒャ': 'hya', 'ヒュ': 'hyu', 'ヒョ': 'hyo',
+    'ミャ': 'mya', 'ミュ': 'myu', 'ミョ': 'myo',
+    'リャ': 'rya', 'リュ': 'ryu', 'リョ': 'ryo',
+    'ギャ': 'gya', 'ギュ': 'gyu', 'ギョ': 'gyo',
+    'ジャ': 'ja', 'ジュ': 'ju', 'ジョ': 'jo',
+    'ビャ': 'bya', 'ビュ': 'byu', 'ビョ': 'byo',
+    'ピャ': 'pya', 'ピュ': 'pyu', 'ピョ': 'pyo',
+    'ティ': 'ti', 'ディ': 'di', 'チェ': 'che', 'シェ': 'she', 'ジェ': 'je',
+    'ファ': 'fa', 'フィ': 'fi', 'フェ': 'fe', 'フォ': 'fo',
+    'ウィ': 'wi', 'ウェ': 'we', 'ウォ': 'wo', 'ヴァ': 'va', 'ヴィ': 'vi', 'ヴェ': 've', 'ヴォ': 'vo'
+  };
+
+  const singles: Record<string, string> = {
     'あ': 'a', 'い': 'i', 'う': 'u', 'え': 'e', 'お': 'o',
     'か': 'ka', 'き': 'ki', 'く': 'ku', 'け': 'ke', 'こ': 'ko',
     'さ': 'sa', 'し': 'shi', 'す': 'su', 'せ': 'se', 'そ': 'so',
     'た': 'ta', 'ち': 'chi', 'つ': 'tsu', 'て': 'te', 'と': 'to',
-    'な': 'na', 'に': 'ni', 'ぬ': 'nu', 'ね': 'ne', 'の': 'no',
+    'な': 'na', 'ni': 'ni', 'ぬ': 'nu', 'ね': 'ne', 'の': 'no', 'に': 'ni',
     'は': 'ha', 'ひ': 'hi', 'ふ': 'fu', 'へ': 'he', 'ほ': 'ho',
     'ま': 'ma', 'み': 'mi', 'む': 'mu', 'め': 'me', 'も': 'mo',
     'や': 'ya', 'ゆ': 'yu', 'よ': 'yo',
@@ -57,31 +87,122 @@ function simpleKanaToRomaji(text: string): string {
     'ヤ': 'ya', 'ユ': 'yu', 'ヨ': 'yo',
     'ラ': 'ra', 'リ': 'ri', 'ル': 'ru', 'レ': 're', 'ロ': 'ro',
     'ワ': 'wa', 'ヲ': 'o', 'ン': 'n',
-    'ガ': 'ga', 'ギ': 'gi', 'グ': 'gu', 'ゲ': 'ge', 'ゴ': 'go',
+    'ガ': 'ga', 'ギ': 'gi', 'グ': 'gu', 'ゲ': 'ge', 'ご': 'go',
     'ザ': 'za', 'ジ': 'ji', 'ズ': 'zu', 'ゼ': 'ze', 'ゾ': 'zo',
     'ダ': 'da', 'ヂ': 'ji', 'ヅ': 'zu', 'デ': 'de', 'ド': 'do',
     'バ': 'ba', 'ビ': 'bi', 'ブ': 'bu', 'ベ': 'be', 'ボ': 'bo',
     'パ': 'pa', 'ピ': 'pi', 'プ': 'pu', 'ペ': 'pe', 'ポ': 'po',
+    'ー': '-', 'っ': '', 'ッ': ''
   };
-  let romaji = '';
-  for (let i = 0; i < text.length; i++) {
+
+  let result = '';
+  let i = 0;
+  while (i < text.length) {
+    // Sokuon (double consonant) check
+    if ((text[i] === 'っ' || text[i] === 'ッ') && i + 1 < text.length) {
+      const nextPair = text.substring(i + 1, i + 3);
+      const nextChar = text[i + 1];
+      const combo = combos[nextPair];
+      const single = singles[nextChar];
+      const targetSyllable = combo || single || '';
+      if (targetSyllable && targetSyllable.length > 0) {
+        result += targetSyllable[0]; // double the consonant
+      }
+      i++;
+      continue;
+    }
+
+    // 2-character combo check
+    if (i + 1 < text.length) {
+      const pair = text.substring(i, i + 2);
+      if (combos[pair]) {
+        result += combos[pair];
+        i += 2;
+        continue;
+      }
+    }
+
+    // Single character check
     const char = text[i];
-    romaji += map[char] || char;
+    if (singles[char]) {
+      result += singles[char];
+    } else {
+      result += char;
+    }
+    i++;
   }
-  return romaji;
+
+  // Capitalize first letter cleanly
+  if (result.length > 0) {
+    return result.charAt(0).toUpperCase() + result.slice(1);
+  }
+  return result;
 }
 
 // In-memory quick translation cache to prevent duplicate network calls
 const translationCache = new Map<string, TranslationResult>();
 
 /**
- * Free client-side live translation engine
- * Supports translating any Turkish / user phrase directly into the target language with Romaji / Latin pronunciation.
+ * Parses Google Translate response and extracts translated text and Romanization/Latin phonetics
+ */
+function parseGoogleTranslateData(data: any, targetLangName: string): { translated: string; romaji: string } {
+  let translated = '';
+  let romaji = '';
+
+  if (Array.isArray(data) && Array.isArray(data[0])) {
+    for (const part of data[0]) {
+      if (!part) continue;
+      
+      // Standard translation piece
+      if (typeof part[0] === 'string') {
+        translated += part[0];
+      }
+
+      // Romanization chunk in Google Translate schema (part[0] is null/empty and part[2] contains romanized phonetic)
+      if (!part[0] && typeof part[2] === 'string' && part[2].trim()) {
+        romaji = part[2].trim();
+      } else if (!romaji && typeof part[2] === 'string' && part[2].trim()) {
+        // Direct attached transliteration
+        romaji = part[2].trim();
+      }
+    }
+
+    // Also check trailing chunk for romanization
+    if (!romaji && data[0].length > 1) {
+      const last = data[0][data[0].length - 1];
+      if (Array.isArray(last) && typeof last[2] === 'string' && last[2].trim()) {
+        romaji = last[2].trim();
+      }
+    }
+  }
+
+  // Clean trailing spaces and normalize
+  translated = translated.trim();
+  romaji = romaji.trim();
+
+  // If no romanization from Google, determine from target script
+  if (!romaji || romaji === translated) {
+    if (targetLangName === 'Japonca') {
+      romaji = kanaToRomajiComprehensive(translated);
+    } else if (['İngilizce', 'Almanca', 'İspanyolca', 'Fransızca', 'İtalyanca'].includes(targetLangName)) {
+      romaji = translated;
+    } else {
+      romaji = translated;
+    }
+  }
+
+  return { translated, romaji };
+}
+
+/**
+ * Universal Client-Side Free Live Translation Engine
+ * 
+ * Supports translating ANY Turkish or international phrase/sentence into the target language with real-time accuracy and Romanization.
  */
 export async function translateLiveFree(
   query: string,
   targetLangName: string = 'Japonca',
-  sourceLangCode: string = 'tr'
+  sourceLangCode: string = 'auto'
 ): Promise<TranslationResult | null> {
   const clean = (query || '').trim();
   if (!clean) return null;
@@ -95,218 +216,9 @@ export async function translateLiveFree(
     return translationCache.get(cacheKey)!;
   }
 
-  // 0. Özel Doğal Konuşma Deyimleri ve Durum Kalıpları (Colloquial Idiom Normalization)
-  const normClean = clean.toLowerCase().replace(/[.,!?;:]/g, '').trim();
-  const CONVERSATIONAL_IDIOMS: Record<string, Record<string, { target: string; romaji: string; native: string }>> = {
-    'yolunda': {
-      'Japonca': { target: '順調です！', romaji: 'Junchou desu!', native: 'Her şey yolunda / Gayet iyi' },
-      'İngilizce': { target: 'Everything is going well!', romaji: 'Everything is going well!', native: 'Her şey yolunda' },
-      'Almanca': { target: 'Alles läuft gut!', romaji: 'Alles läuft gut!', native: 'Her şey yolunda' },
-      'Fransızca': { target: 'Tout va bien !', romaji: 'Tout va bien !', native: 'Her şey yolunda' },
-      'İspanyolca': { target: '¡Todo va bien!', romaji: '¡Todo va bien!', native: 'Her şey yolunda' },
-      'Rusça': { target: 'Всё идёт хорошо!', romaji: 'Vsyo idyot khorosho!', native: 'Her şey yolunda' },
-      'Arapça': { target: 'كُلُّ شَيْءٍ عَلَى مَايُرَام', romaji: 'Kullu shay’in ala ma yuram', native: 'Her şey yolunda' }
-    },
-    'her sey yolunda': {
-      'Japonca': { target: 'すべて順調です！', romaji: 'Subete junchou desu!', native: 'Her şey yolunda' },
-      'İngilizce': { target: 'Everything is fine!', romaji: 'Everything is fine!', native: 'Her şey yolunda' },
-      'Almanca': { target: 'Alles läuft super!', romaji: 'Alles läuft super!', native: 'Her şey yolunda' }
-    },
-    'hersey yolunda': {
-      'Japonca': { target: 'すべて順調です！', romaji: 'Subete junchou desu!', native: 'Her şey yolunda' },
-      'İngilizce': { target: 'Everything is on track!', romaji: 'Everything is on track!', native: 'Her şey yolunda' }
-    },
-    'her sey yolunda mi': {
-      'Japonca': { target: '順調ですか？', romaji: 'Junchou desu ka?', native: 'Her şey yolunda mı?' },
-      'İngilizce': { target: 'Is everything going well?', romaji: 'Is everything going well?', native: 'Her şey yolunda mı?' }
-    },
-    'evet': {
-      'Japonca': { target: 'はい！', romaji: 'Hai!', native: 'Evet' },
-      'İngilizce': { target: 'Yes!', romaji: 'Yes!', native: 'Evet' },
-      'Almanca': { target: 'Ja!', romaji: 'Ja!', native: 'Evet' },
-      'Fransızca': { target: 'Oui !', romaji: 'Oui !', native: 'Evet' },
-      'İspanyolca': { target: '¡Sí!', romaji: '¡Sí!', native: 'Evet' },
-      'Rusça': { target: 'Да!', romaji: 'Da!', native: 'Evet' },
-      'Arapça': { target: 'نَعَمْ!', romaji: 'Naam!', native: 'Evet' }
-    },
-    'hayir': {
-      'Japonca': { target: 'いいえ', romaji: 'Iie', native: 'Hayır' },
-      'İngilizce': { target: 'No', romaji: 'No', native: 'Hayır' },
-      'Almanca': { target: 'Nein', romaji: 'Nein', native: 'Hayır' },
-      'Fransızca': { target: 'Non', romaji: 'Non', native: 'Hayır' },
-      'İspanyolca': { target: 'No', romaji: 'No', native: 'Hayır' },
-      'Rusça': { target: 'Нет', romaji: 'Net', native: 'Hayır' },
-      'Arapça': { target: 'لَا', romaji: 'La', native: 'Hayır' }
-    },
-    'hayır': {
-      'Japonca': { target: 'いいえ', romaji: 'Iie', native: 'Hayır' },
-      'İngilizce': { target: 'No', romaji: 'No', native: 'Hayır' }
-    },
-    'tamam': {
-      'Japonca': { target: '分かりました！', romaji: 'Wakarimashita!', native: 'Tamam / Anlaşıldı' },
-      'İngilizce': { target: 'All right / Okay!', romaji: 'All right / Okay!', native: 'Tamam' },
-      'Almanca': { target: 'Alles klar!', romaji: 'Alles klar!', native: 'Tamam' }
-    },
-    'olur': {
-      'Japonca': { target: 'いいですよ！', romaji: 'Ii desu yo!', native: 'Olur / Tabii ki' },
-      'İngilizce': { target: 'Sure / Sounds good!', romaji: 'Sure / Sounds good!', native: 'Olur' }
-    },
-    'anlastik': {
-      'Japonca': { target: '了解です！', romaji: 'Ryoukai desu!', native: 'Anlaştık!' },
-      'İngilizce': { target: 'Deal / Agreed!', romaji: 'Deal / Agreed!', native: 'Anlaştık!' }
-    },
-    'anlaştık': {
-      'Japonca': { target: '了解です！', romaji: 'Ryoukai desu!', native: 'Anlaştık!' },
-      'İngilizce': { target: 'Deal / Agreed!', romaji: 'Deal / Agreed!', native: 'Anlaştık!' }
-    },
-    'selamunaleykum': {
-      'Japonca': { target: 'こんにちは！', romaji: 'Konnichiwa!', native: 'Selamün Aleyküm' },
-      'İngilizce': { target: 'Peace be upon you!', romaji: 'Peace be upon you!', native: 'Selamün Aleyküm' },
-      'Arapça': { target: 'السَّلَامُ عَلَيْكُمْ', romaji: 'As-salamu alaykum', native: 'Selamün Aleyküm' }
-    },
-    'selamun aleykum': {
-      'Japonca': { target: 'こんにちは！', romaji: 'Konnichiwa!', native: 'Selamün Aleyküm' },
-      'İngilizce': { target: 'Peace be upon you!', romaji: 'Peace be upon you!', native: 'Selamün Aleyküm' },
-      'Arapça': { target: 'السَّلَامُ عَلَيْكُمْ', romaji: 'As-salamu alaykum', native: 'Selamün Aleyküm' }
-    },
-    'selamünaleyküm': {
-      'Japonca': { target: 'こんにちは！', romaji: 'Konnichiwa!', native: 'Selamün Aleyküm' },
-      'İngilizce': { target: 'Peace be upon you!', romaji: 'Peace be upon you!', native: 'Selamün Aleyküm' },
-      'Arapça': { target: 'السَّلَامُ عَلَيْكُمْ', romaji: 'As-salamu alaykum', native: 'Selamün Aleyküm' }
-    },
-    'selamün aleyküm': {
-      'Japonca': { target: 'こんにちは！', romaji: 'Konnichiwa!', native: 'Selamün Aleyküm' },
-      'İngilizce': { target: 'Peace be upon you!', romaji: 'Peace be upon you!', native: 'Selamün Aleyküm' },
-      'Arapça': { target: 'السَّلَامُ عَلَيْكُمْ', romaji: 'As-salamu alaykum', native: 'Selamün Aleyküm' }
-    },
-    'aleykumselam': {
-      'Japonca': { target: 'こんにちは！', romaji: 'Konnichiwa!', native: 'Aleyküm Selam' },
-      'İngilizce': { target: 'Peace be upon you too!', romaji: 'Peace be upon you too!', native: 'Aleyküm Selam' },
-      'Arapça': { target: 'وَعَلَيْكُمُ السَّلَام', romaji: 'Wa alaykumu s-salam', native: 'Aleyküm Selam' }
-    },
-    'aleyküm selam': {
-      'Japonca': { target: 'こんにちは！', romaji: 'Konnichiwa!', native: 'Aleyküm Selam' },
-      'İngilizce': { target: 'Peace be upon you too!', romaji: 'Peace be upon you too!', native: 'Aleyküm Selam' }
-    },
-    'ne yaptin': {
-      'Japonca': { target: '何をしていましたか？', romaji: 'Nani o shite imashita ka?', native: 'Ne yaptın?' },
-      'İngilizce': { target: 'What did you do?', romaji: 'What did you do?', native: 'Ne yaptın?' },
-      'Almanca': { target: 'Was hast du gemacht?', romaji: 'Was hast du gemacht?', native: 'Ne yaptın?' },
-      'Fransızca': { target: "Qu'as-tu fait ?", romaji: "Qu'as-tu fait ?", native: 'Ne yaptın?' },
-      'İspanyolca': { target: '¿Qué hiciste?', romaji: '¿Qué hiciste?', native: 'Ne yaptın?' }
-    },
-    'ne yaptın': {
-      'Japonca': { target: '何をしていましたか？', romaji: 'Nani o shite imashita ka?', native: 'Ne yaptın?' },
-      'İngilizce': { target: 'What did you do?', romaji: 'What did you do?', native: 'Ne yaptın?' },
-      'Almanca': { target: 'Was hast du gemacht?', romaji: 'Was hast du gemacht?', native: 'Ne yaptın?' },
-      'Fransızca': { target: "Qu'as-tu fait ?", romaji: "Qu'as-tu fait ?", native: 'Ne yaptın?' },
-      'İspanyolca': { target: '¿Qué hiciste?', romaji: '¿Qué hiciste?', native: 'Ne yaptın?' }
-    },
-    'naptin': {
-      'Japonca': { target: '何をしていましたか？', romaji: 'Nani o shite imashita ka?', native: 'Naptın / Ne yaptın?' },
-      'İngilizce': { target: 'What did you do?', romaji: 'What did you do?', native: 'Naptın?' },
-      'Almanca': { target: 'Was hast du gemacht?', romaji: 'Was hast du gemacht?', native: 'Naptın?' }
-    },
-    'naptın': {
-      'Japonca': { target: '何をしていましたか？', romaji: 'Nani o shite imashita ka?', native: 'Naptın / Ne yaptın?' },
-      'İngilizce': { target: 'What did you do?', romaji: 'What did you do?', native: 'Naptın?' },
-      'Almanca': { target: 'Was hast du gemacht?', romaji: 'Was hast du gemacht?', native: 'Naptın?' }
-    },
-    'naptınız': {
-      'Japonca': { target: '何をされましたか？', romaji: 'Nani o saremashita ka?', native: 'Naptınız / Ne yaptınız?' },
-      'İngilizce': { target: 'What did you do?', romaji: 'What did you do?', native: 'Naptınız?' }
-    },
-    'ne yaptınız': {
-      'Japonca': { target: '何をされましたか？', romaji: 'Nani o saremashita ka?', native: 'Ne yaptınız?' },
-      'İngilizce': { target: 'What did you do?', romaji: 'What did you do?', native: 'Ne yaptınız?' }
-    },
-    'ne yapiyorsun': {
-      'Japonca': { target: '何をしていますか？', romaji: 'Nani o shite imasu ka?', native: 'Ne yapıyorsun?' },
-      'İngilizce': { target: 'What are you doing?', romaji: 'What are you doing?', native: 'Ne yapıyorsun?' },
-      'Almanca': { target: 'Was machst du?', romaji: 'Was machst du?', native: 'Ne yapıyorsun?' }
-    },
-    'ne yapıyorsun': {
-      'Japonca': { target: '何をしていますか？', romaji: 'Nani o shite imasu ka?', native: 'Ne yapıyorsun?' },
-      'İngilizce': { target: 'What are you doing?', romaji: 'What are you doing?', native: 'Ne yapıyorsun?' },
-      'Almanca': { target: 'Was machst du?', romaji: 'Was machst du?', native: 'Ne yapıyorsun?' }
-    },
-    'napiyorsun': {
-      'Japonca': { target: '何をしていますか？', romaji: 'Nani o shite imasu ka?', native: 'Napıyorsun?' },
-      'İngilizce': { target: 'What are you doing?', romaji: 'What are you doing?', native: 'Napıyorsun?' }
-    },
-    'napıyorsun': {
-      'Japonca': { target: '何をしていますか？', romaji: 'Nani o shite imasu ka?', native: 'Napıyorsun?' },
-      'İngilizce': { target: 'What are you doing?', romaji: 'What are you doing?', native: 'Napıyorsun?' }
-    },
-    'bugun ne yaptin': {
-      'Japonca': { target: '今日は何をしましたか？', romaji: 'Kyou wa nani o shimashita ka?', native: 'Bugün ne yaptın?' },
-      'İngilizce': { target: 'What did you do today?', romaji: 'What did you do today?', native: 'Bugün ne yaptın?' }
-    },
-    'bugün ne yaptın': {
-      'Japonca': { target: '今日は何をしましたか？', romaji: 'Kyou wa nani o shimashita ka?', native: 'Bugün ne yaptın?' },
-      'İngilizce': { target: 'What did you do today?', romaji: 'What did you do today?', native: 'Bugün ne yaptın?' }
-    },
-    'fena degil': {
-      'Japonca': { target: '悪くないです', romaji: 'Warukunai desu', native: 'Fena değil' },
-      'İngilizce': { target: 'Not bad!', romaji: 'Not bad!', native: 'Fena değil' }
-    },
-    'idare eder': {
-      'Japonca': { target: 'まあまあです', romaji: 'Maa maa desu', native: 'İdare eder' },
-      'İngilizce': { target: 'So so / It is okay', romaji: 'So so / It is okay', native: 'İdare eder' }
-    },
-    'sorun yok': {
-      'Japonca': { target: '問題ないです', romaji: 'Mondai nai desu', native: 'Sorun yok / Problem yok' },
-      'İngilizce': { target: 'No problem!', romaji: 'No problem!', native: 'Sorun yok' }
-    },
-    'problem yok': {
-      'Japonca': { target: '問題ないです', romaji: 'Mondai nai desu', native: 'Problem yok' },
-      'İngilizce': { target: 'No issue at all!', romaji: 'No issue at all!', native: 'Problem yok' }
-    },
-    'tesekkurler': {
-      'Japonca': { target: 'ありがとうございます！', romaji: 'Arigatou gozaimasu!', native: 'Teşekkürler' },
-      'İngilizce': { target: 'Thank you very much!', romaji: 'Thank you very much!', native: 'Teşekkürler' }
-    },
-    'teşekkürler': {
-      'Japonca': { target: 'ありがとうございます！', romaji: 'Arigatou gozaimasu!', native: 'Teşekkürler' },
-      'İngilizce': { target: 'Thank you very much!', romaji: 'Thank you very much!', native: 'Teşekkürler' }
-    }
-  };
-
-  if (CONVERSATIONAL_IDIOMS[normClean]?.[targetLangName]) {
-    const matched = CONVERSATIONAL_IDIOMS[normClean][targetLangName];
-    const res: TranslationResult = {
-      sourceText: clean,
-      targetText: matched.target,
-      romaji: matched.romaji,
-      nativeExplanation: `${clean} ➔ ${matched.target}`,
-      sourceLang: 'Türkçe',
-      targetLang: targetLangName,
-      isLiveTranslated: false,
-    };
-    translationCache.set(cacheKey, res);
-    return res;
-  }
-
-  // 1. Check local comprehensive dictionary / mega library for instant exact match
-  const localMatches = searchComprehensiveDictionary(clean, targetLangName);
-  let localExact: TranslationResult | null = null;
-  if (localMatches.length > 0) {
-    const first = localMatches[0];
-    localExact = {
-      sourceText: clean,
-      targetText: first.target,
-      romaji: first.romaji || first.target,
-      nativeExplanation: first.native || clean,
-      sourceLang: 'Türkçe',
-      targetLang: targetLangName,
-      isLiveTranslated: false,
-    };
-  }
-
-  // 2. Perform Live Free Online Translation via Google Translate Web Client Endpoint
+  // 1. PRIMARY ENGINE: Universal Live Google Translate Web Endpoint with Transliteration (dt=t & dt=rm)
   try {
     const encoded = encodeURIComponent(clean);
-    // dt=t (translation), dt=rm (transliteration / romanization for non-latin scripts like Japanese/Chinese/Korean/Arabic/Russian)
     const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sourceLangCode}&tl=${targetCode}&dt=t&dt=rm&q=${encoded}`;
 
     const res = await fetch(url, {
@@ -318,49 +230,14 @@ export async function translateLiveFree(
 
     if (res.ok) {
       const data = await res.json();
-      // data format:
-      // data[0] is an array of sentence parts: [[translated_text, source_text, ...]]
-      // data[0] often has a trailing element for romanization in some languages, or data[0][1] for romaji
-      let translatedText = '';
-      let romajiText = '';
+      const { translated, romaji } = parseGoogleTranslateData(data, targetLangName);
 
-      if (Array.isArray(data) && Array.isArray(data[0])) {
-        data[0].forEach((part: any) => {
-          if (typeof part[0] === 'string') {
-            translatedText += part[0];
-          }
-          // The last element or 3rd/4th element sometimes has romanization
-          if (part[2] && typeof part[2] === 'string') {
-            romajiText = part[2];
-          } else if (part[3] && typeof part[3] === 'string') {
-            romajiText = part[3];
-          }
-        });
-
-        // Check if there is romanization in the last item of data[0]
-        const lastPart = data[0][data[0].length - 1];
-        if (Array.isArray(lastPart) && typeof lastPart[2] === 'string') {
-          romajiText = lastPart[2];
-        }
-      }
-
-      // If romajiText wasn't extracted from Google response, create smart phonetic/romaji:
-      if (!romajiText || romajiText.trim() === '') {
-        if (targetLangName === 'Japonca') {
-          romajiText = simpleKanaToRomaji(translatedText);
-        } else if (targetLangName === 'İngilizce' || targetLangName === 'Almanca' || targetLangName === 'İspanyolca' || targetLangName === 'Fransızca' || targetLangName === 'İtalyanca') {
-          romajiText = translatedText; // Already latin script
-        } else {
-          romajiText = translatedText;
-        }
-      }
-
-      if (translatedText && translatedText.trim().length > 0) {
+      if (translated && translated.length > 0) {
         const result: TranslationResult = {
           sourceText: clean,
-          targetText: translatedText.trim(),
-          romaji: romajiText.trim() || translatedText.trim(),
-          nativeExplanation: `${clean} ➔ ${translatedText.trim()}`,
+          targetText: translated,
+          romaji: romaji || translated,
+          nativeExplanation: clean,
           sourceLang: 'Türkçe',
           targetLang: targetLangName,
           isLiveTranslated: true,
@@ -371,23 +248,28 @@ export async function translateLiveFree(
       }
     }
   } catch (err) {
-    console.warn('Live Google Translate fetch failed, trying MyMemory / local fallback:', err);
+    console.warn('Primary Google Translate live request failed, trying secondary endpoints:', err);
   }
 
-  // 3. Fallback: Free MyMemory Translation API
+  // 2. SECONDARY ENGINE: Alternative Google Chrome Dictionary Endpoint
   try {
-    const myMemoryPair = `tr|${langInfo.gCode}`;
-    const myMemoryUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(clean)}&langpair=${myMemoryPair}`;
-    const mmRes = await fetch(myMemoryUrl);
-    if (mmRes.ok) {
-      const mmData = await mmRes.json();
-      if (mmData && mmData.responseData && mmData.responseData.translatedText) {
-        const trText = mmData.responseData.translatedText;
+    const encoded = encodeURIComponent(clean);
+    const altUrl = `https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=auto&tl=${targetCode}&q=${encoded}`;
+    const altRes = await fetch(altUrl);
+    if (altRes.ok) {
+      const altData = await altRes.json();
+      let text = '';
+      if (Array.isArray(altData)) {
+        if (typeof altData[0] === 'string') text = altData[0];
+        else if (Array.isArray(altData[0]) && typeof altData[0][0] === 'string') text = altData[0][0];
+      }
+      if (text.trim()) {
+        const romaji = targetLangName === 'Japonca' ? kanaToRomajiComprehensive(text.trim()) : text.trim();
         const result: TranslationResult = {
           sourceText: clean,
-          targetText: trText,
-          romaji: targetLangName === 'Japonca' ? simpleKanaToRomaji(trText) : trText,
-          nativeExplanation: `${clean} ➔ ${trText}`,
+          targetText: text.trim(),
+          romaji: romaji,
+          nativeExplanation: clean,
           sourceLang: 'Türkçe',
           targetLang: targetLangName,
           isLiveTranslated: true,
@@ -397,15 +279,54 @@ export async function translateLiveFree(
       }
     }
   } catch (e) {
+    console.warn('Secondary translation client failed:', e);
+  }
+
+  // 3. TERTIARY ENGINE: MyMemory Free Translation API
+  try {
+    const myMemoryUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(clean)}&langpair=tr|${targetCode}`;
+    const mmRes = await fetch(myMemoryUrl);
+    if (mmRes.ok) {
+      const mmData = await mmRes.json();
+      if (mmData?.responseData?.translatedText) {
+        const trText = mmData.responseData.translatedText.trim();
+        if (trText && trText.toLowerCase() !== clean.toLowerCase()) {
+          const result: TranslationResult = {
+            sourceText: clean,
+            targetText: trText,
+            romaji: targetLangName === 'Japonca' ? kanaToRomajiComprehensive(trText) : trText,
+            nativeExplanation: clean,
+            sourceLang: 'Türkçe',
+            targetLang: targetLangName,
+            isLiveTranslated: true,
+          };
+          translationCache.set(cacheKey, result);
+          return result;
+        }
+      }
+    }
+  } catch (e) {
     console.warn('MyMemory fallback failed:', e);
   }
 
-  // 4. If all online free APIs failed, return local match if available
-  if (localExact) {
-    return localExact;
+  // 4. QUATERNARY: Check local dictionary
+  const localMatches = searchComprehensiveDictionary(clean, targetLangName);
+  if (localMatches.length > 0) {
+    const first = localMatches[0];
+    const result: TranslationResult = {
+      sourceText: clean,
+      targetText: first.target,
+      romaji: first.romaji || first.target,
+      nativeExplanation: first.native || clean,
+      sourceLang: 'Türkçe',
+      targetLang: targetLangName,
+      isLiveTranslated: false,
+    };
+    translationCache.set(cacheKey, result);
+    return result;
   }
 
-  // 5. Ultimate fallback: Return structured item with original query
+  // 5. Raw structured item
   return {
     sourceText: clean,
     targetText: clean,
@@ -451,4 +372,5 @@ export async function translateBetweenLanguagesFree(
 
   return clean;
 }
+
 

@@ -4,7 +4,7 @@ import {
   Mic, Volume2, VolumeX, X, Play, Pause, Square, CheckCircle2, 
   Sparkles, Headphones, Send, ChevronUp, ChevronDown, RotateCcw,
   MessageSquare, Radio, Search, Globe, ChevronRight, Trash2, Lock, Clock,
-  Check
+  Check, ArrowLeft
 } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, getLanguageCode } from '../data/languages';
 import { 
@@ -189,12 +189,12 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
         const seen = new Set<string>();
 
         // 1. FIRST TOP PRIORITY: Instant accurate direct translation for the search term (Google Translate / Free Live Translation)
-        const transResult = await translateLiveFree(query, activeTargetLang, 'tr');
+        const transResult = await translateLiveFree(query, activeTargetLang, 'auto');
         if (transResult && transResult.targetText && !seen.has(transResult.targetText)) {
           const directCard: DialogueSuggestion = {
             target: transResult.targetText,
             romaji: transResult.romaji || transResult.targetText,
-            native: `${query} (${transResult.targetText})`,
+            native: transResult.nativeExplanation || query,
             category: transResult.isLiveTranslated ? '✨ Canlı Çeviri' : '📖 Sözlük',
           };
           seen.add(directCard.target);
@@ -432,13 +432,22 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
     };
   }, []);
 
-  // Web Speech Recognition / Media Stream cleanup on unmount
+  // Web Speech Recognition / Media Stream cleanup & Hardware Back / Escape key handling
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        stopAudioPlayback();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
     return () => {
+      window.removeEventListener('keydown', handleKeyDown);
       stopAudioPlayback();
       cleanupMediaRecorder();
     };
-  }, [activeTargetLang]);
+  }, [activeTargetLang, isOpen, onClose]);
 
   const cleanupMediaRecorder = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
@@ -1188,39 +1197,51 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[150] flex flex-col bg-[#0A0512] text-white font-sans overflow-hidden">
-      {/* 1. TOP HEADER (MULTI-LANGUAGE SELECTOR, TITLE, SOUND & CLOSE) */}
-      <div className="flex items-center justify-between px-3.5 sm:px-4 py-2.5 bg-[#120B1C]/95 backdrop-blur-md border-b border-white/10 z-30 flex-shrink-0">
-        {/* Left: Avatar + Title */}
-        <div className="flex items-center gap-2.5 sm:gap-3">
-          <div className="relative">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-[#00F0FF] via-[#7928CA] to-[#FF0080] p-0.5 shadow-md flex items-center justify-center">
-              <div className="w-full h-full bg-[#120B1C] rounded-full flex items-center justify-center text-base sm:text-lg">
+      {/* 1. TOP HEADER (PROMINENT BACK BUTTON, AVATAR, TITLE, SOUND & CONTROLS) */}
+      <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 bg-[#120B1C]/95 backdrop-blur-md border-b border-white/10 z-30 flex-shrink-0">
+        {/* Left: Prominent Back / Exit Button + Avatar + Title */}
+        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+          <button
+            type="button"
+            onClick={() => {
+              stopAudioPlayback();
+              onClose();
+            }}
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 flex items-center justify-center text-white border border-white/15 transition-all flex-shrink-0 cursor-pointer shadow-sm"
+            title="Geri Dön / Sohbetten Çık"
+          >
+            <ArrowLeft size={18} />
+          </button>
+
+          <div className="relative flex-shrink-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-tr from-[#00F0FF] via-[#7928CA] to-[#FF0080] p-0.5 shadow-md flex items-center justify-center">
+              <div className="w-full h-full bg-[#120B1C] rounded-full flex items-center justify-center text-sm sm:text-base">
                 👘
               </div>
             </div>
             {/* Green Online Dot */}
-            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-[#25D366] border-2 border-[#0A0512] rounded-full shadow-sm"></span>
+            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-[#25D366] border-2 border-[#0A0512] rounded-full shadow-sm"></span>
           </div>
 
-          <div>
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <h2 className="text-sm sm:text-base font-black text-white tracking-wide">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1 sm:gap-1.5">
+              <h2 className="text-xs sm:text-sm font-black text-white tracking-wide truncate">
                 Sensei Sesli Sohbet
               </h2>
-              <span className="px-1.5 py-0.5 bg-[#FF0080]/20 border border-[#FF0080]/50 text-[#FF80BF] text-[8px] sm:text-[9px] font-black rounded-full uppercase tracking-wider">
+              <span className="px-1.5 py-0.2 bg-[#FF0080]/20 border border-[#FF0080]/50 text-[#FF80BF] text-[8px] sm:text-[9px] font-black rounded-full uppercase tracking-wider flex-shrink-0">
                 SESLİ KOÇ
               </span>
             </div>
-            <p className="text-[10px] sm:text-[11px] text-gray-400">
-              {currentLangObj.flag} {activeTargetLang} Pratiği • Konuştukça ilerler
+            <p className="text-[10px] text-gray-400 truncate">
+              {currentLangObj.flag} {activeTargetLang}
             </p>
           </div>
         </div>
 
-        {/* Right Controls: Gemma 3 1B GPU Pill, Real-Time Clock Badge, Locked Target Language Badge, Sound & Close */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* On-Device Gemma 3 1B (GPU) Mode Toggle & Settings Button */}
-          <div className="flex items-center gap-1">
+        {/* Right Controls: Gemma Pill, Target Language, Sound, Trash & Close Button */}
+        <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
+          {/* On-Device Gemma 3 1B Toggle */}
+          <div className="flex items-center">
             <button
               type="button"
               onClick={() => {
@@ -1230,17 +1251,17 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
                 }
                 setUseGemmaOnDevice(!useGemmaOnDevice);
               }}
-              className={`px-2.5 py-1 rounded-l-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer select-none ${
+              className={`p-1.5 sm:px-2 sm:py-1 rounded-l-xl text-xs font-bold flex items-center gap-1 transition-all shadow-sm cursor-pointer select-none ${
                 useGemmaOnDevice && modelInfo.hasValidModel
-                  ? 'bg-gradient-to-r from-[#00F0FF]/20 via-[#7928CA]/20 to-[#FF0080]/20 border border-[#00F0FF]/60 text-[#00F0FF] shadow-[0_0_12px_rgba(0,240,255,0.4)]'
+                  ? 'bg-[#00F0FF]/20 border border-[#00F0FF]/60 text-[#00F0FF]'
                   : 'bg-white/5 border border-white/10 text-gray-400 hover:text-gray-200'
               }`}
               title={
                 !modelInfo.hasValidModel
-                  ? 'Gemma 3 Modeli henüz seçilmedi. Download klasöründen bağlamak için dokunun.'
+                  ? 'Gemma 3 Modeli'
                   : useGemmaOnDevice
-                  ? 'Gemma 3 1B GPU On-Device Aktif'
-                  : 'Sensei Kütüphanesine Geç'
+                  ? 'Gemma 3 GPU Aktif'
+                  : 'Sensei Kütüphanesi'
               }
             >
               <Zap
@@ -1251,13 +1272,6 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
                     : 'text-gray-400'
                 }
               />
-              <span className="text-[10px] sm:text-[11px] font-black hidden xs:inline">
-                {!modelInfo.hasValidModel
-                  ? 'Gemma 3 (Model Seç)'
-                  : useGemmaOnDevice
-                  ? 'Gemma 3 1B • GPU'
-                  : 'Sensei Kütüphane'}
-              </span>
               <span
                 className={`w-1.5 h-1.5 rounded-full ${
                   useGemmaOnDevice && modelInfo.hasValidModel
@@ -1271,30 +1285,20 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
             <button
               type="button"
               onClick={() => setIsModelManagerOpen(true)}
-              className="px-2 py-1 bg-white/5 hover:bg-white/15 border border-white/10 rounded-r-xl text-gray-300 hover:text-[#00F0FF] transition-all cursor-pointer flex items-center"
-              title="Gemma 3 Model Dosyası Yöneticisi (Download Klasöründen Seç)"
+              className="p-1.5 sm:px-1.5 sm:py-1 bg-white/5 hover:bg-white/15 border border-white/10 rounded-r-xl text-gray-300 hover:text-[#00F0FF] transition-all cursor-pointer flex items-center"
+              title="Gemma Model Ayarları"
             >
               <Settings size={12} />
             </button>
           </div>
 
-          {/* Live Device Clock Badge */}
-          <div 
-            className="hidden md:flex px-2 py-1.5 rounded-xl bg-white/5 border border-white/10 text-[11px] font-mono font-bold text-gray-300 items-center gap-1.5 shadow-sm select-none"
-            title={`Cihaz Saati: ${getCurrentTimeContext().currentTimeFormatted} (${getCurrentTimeContext().slotLabelTr})`}
-          >
-            <Clock size={12} className="text-[#00F0FF]" />
-            <span>{getCurrentTimeContext().currentTimeFormatted}</span>
-          </div>
-
           {/* Locked Target Language Badge */}
           <div 
-            className="px-2.5 py-1.5 rounded-xl bg-white/10 border border-white/20 text-xs font-bold text-white flex items-center gap-1.5 shadow-sm select-none"
-            title={`${activeTargetLang} dili kilitli ve aktif`}
+            className="px-2 py-1 rounded-xl bg-white/10 border border-white/20 text-xs font-bold text-white flex items-center gap-1 shadow-sm select-none"
+            title={`${activeTargetLang} dili aktif`}
           >
-            <span className="text-sm">{currentLangObj.flag}</span>
-            <span className="text-xs font-black text-gray-200">{activeTargetLang}</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-[#00F0FF]"></span>
+            <span className="text-xs">{currentLangObj.flag}</span>
+            <span className="text-[11px] font-black text-gray-200 hidden xs:inline">{activeTargetLang}</span>
           </div>
 
           {/* Sound / Stop Playback Toggle */}
@@ -1302,46 +1306,44 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
             type="button"
             onClick={() => {
               if (activeAudioPlayingId) {
-                // If audio is currently playing, pause/stop it immediately
                 stopAudioPlayback();
               } else {
-                // Toggle auto play preference
                 setAutoPlayAudio(!autoPlayAudio);
               }
             }}
-            className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all cursor-pointer ${
+            className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center border transition-all cursor-pointer ${
               activeAudioPlayingId
                 ? 'bg-[#00F0FF] border-[#00F0FF] text-black shadow-[0_0_12px_rgba(0,240,255,0.8)] animate-pulse'
                 : autoPlayAudio
-                ? 'bg-[#00F0FF]/20 border-[#00F0FF]/50 text-[#00F0FF] shadow-[0_0_10px_rgba(0,240,255,0.3)]'
+                ? 'bg-[#00F0FF]/20 border-[#00F0FF]/50 text-[#00F0FF]'
                 : 'bg-white/5 border-white/10 text-gray-400'
             }`}
-            title={activeAudioPlayingId ? 'Çalan Sesi Durdur (⏸️)' : (autoPlayAudio ? 'Otomatik Ses Açık' : 'Ses Kapalı')}
+            title={activeAudioPlayingId ? 'Durdur' : (autoPlayAudio ? 'Ses Açık' : 'Ses Kapalı')}
           >
-            {activeAudioPlayingId ? <Pause size={14} /> : (autoPlayAudio ? <Volume2 size={15} /> : <VolumeX size={15} />)}
+            {activeAudioPlayingId ? <Pause size={13} /> : (autoPlayAudio ? <Volume2 size={14} /> : <VolumeX size={14} />)}
           </button>
 
           {/* Clear Chat History Button */}
           <button
             type="button"
             onClick={handleClearHistory}
-            className="w-8 h-8 rounded-full bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 flex items-center justify-center text-gray-300 hover:text-red-300 transition-all active:scale-95 cursor-pointer"
-            title="Sohbet Geçmişini Temizle"
+            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 flex items-center justify-center text-gray-300 hover:text-red-300 transition-all active:scale-95 cursor-pointer"
+            title="Sohbeti Temizle"
           >
-            <Trash2 size={14} />
+            <Trash2 size={13} />
           </button>
 
-          {/* Close Modal Button */}
+          {/* Dedicated Close Button */}
           <button
             type="button"
             onClick={() => {
               stopAudioPlayback();
               onClose();
             }}
-            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-gray-300 transition-all active:scale-95"
+            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/10 hover:bg-red-500/30 border border-white/20 hover:border-red-500/50 flex items-center justify-center text-white hover:text-red-200 transition-all active:scale-95 cursor-pointer"
             title="Kapat"
           >
-            <X size={16} />
+            <X size={15} />
           </button>
         </div>
       </div>

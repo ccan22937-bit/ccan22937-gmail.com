@@ -125,6 +125,11 @@ class LiteRTLMEngine(private val context: Context) {
             )
 
             val newEngine = Engine(config)
+            try {
+                newEngine.initialize()
+            } catch (initEx: Throwable) {
+                // If initialize method is automatic or throws, preserve instance
+            }
             engine = newEngine
 
             // Initialize active conversation session with standard Gemma 3 sampler

@@ -201,14 +201,14 @@ class NativeAuthBridge(
     private fun launchAccountPickerFallback() {
         try {
             val intent = AccountManager.newChooseAccountIntent(
-                null,
-                null,
+                null as android.accounts.Account?,
+                null as ArrayList<android.accounts.Account>?,
                 arrayOf("com.google"),
                 false,
-                null,
-                null,
-                null,
-                null
+                null as String?,
+                null as String?,
+                null as Array<String>?,
+                null as android.os.Bundle?
             )
             signInLauncher.launch(intent)
         } catch (e: Exception) {

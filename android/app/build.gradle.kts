@@ -60,10 +60,12 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
 }
+
+kotlin {
+    jvmToolchain(17)
+}
+
 
 dependencies {
     // Official Google AI Edge LiteRT-LM Android Engine (Supports .litertlm & Gemma 3 on GPU)

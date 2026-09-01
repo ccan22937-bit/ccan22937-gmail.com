@@ -13,6 +13,7 @@ import android.webkit.WebViewClient
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.sensei.bingelingo.R
 import com.sensei.bingelingo.ai.LiteRTLMEngine
 import com.sensei.bingelingo.ai.LiteRTLMBridge
 import com.sensei.bingelingo.audio.NativeTTSBridge

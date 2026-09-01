@@ -43,7 +43,6 @@ jobs:
       - name: Build Debug APK with Gradle
         working-directory: ./android
         run: |
-          gradle wrapper
           gradle assembleDebug --no-daemon --stacktrace
 
       - name: Upload Debug APK Artifact

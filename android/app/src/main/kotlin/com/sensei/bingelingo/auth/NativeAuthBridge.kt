@@ -204,6 +204,7 @@ class NativeAuthBridge(
                 null,
                 null,
                 arrayOf("com.google"),
+                false,
                 null,
                 null,
                 null,

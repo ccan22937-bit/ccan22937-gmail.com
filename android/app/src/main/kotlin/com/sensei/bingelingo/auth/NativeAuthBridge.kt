@@ -1,5 +1,6 @@
 package com.sensei.bingelingo.auth
 
+import android.accounts.Account
 import android.accounts.AccountManager
 import android.app.Activity
 import android.content.Intent
@@ -200,16 +201,11 @@ class NativeAuthBridge(
 
     private fun launchAccountPickerFallback() {
         try {
-            val intent = AccountManager.newChooseAccountIntent(
-                null as android.accounts.Account?,
-                null as ArrayList<android.accounts.Account>?,
-                arrayOf("com.google"),
-                false,
-                null as String?,
-                null as String?,
-                null as Array<String>?,
-                null as android.os.Bundle?
-            )
+            val intent = Intent(AccountManager.ACTION_ACCOUNT_CHOOSER).apply {
+                putExtra(AccountManager.EXTRA_EXPLICIT_ACCOUNTS, null as ArrayList<Account>?)
+                putExtra(AccountManager.EXTRA_ALLOWABLE_ACCOUNT_TYPES_STRING_ARRAY, arrayOf("com.google"))
+                putExtra(AccountManager.EXTRA_ALWAYS_PROMPT_FOR_ACCOUNT, false)
+            }
             signInLauncher.launch(intent)
         } catch (e: Exception) {
             Log.e(tag, "AccountPicker intent failed: ${e.message}")

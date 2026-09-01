@@ -7,6 +7,7 @@ import com.google.ai.edge.litertlm.Conversation
 import com.google.ai.edge.litertlm.ConversationConfig
 import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
+import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.SamplerConfig
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -294,8 +295,9 @@ class LiteRTLMEngine(private val context: Context) {
                 }
 
                 val fullResponse = StringBuilder()
-                activeConv.sendMessageAsync(prompt).collect { token ->
-                    val tokenText = token.toString()
+                val userMsg = Message.of(prompt)
+                activeConv.sendMessageAsync(userMsg).collect { message ->
+                    val tokenText = message.text
                     if (tokenText.isNotEmpty()) {
                         fullResponse.append(tokenText)
                         withContext(Dispatchers.Main) {

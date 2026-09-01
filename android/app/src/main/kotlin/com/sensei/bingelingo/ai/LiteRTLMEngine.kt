@@ -293,8 +293,8 @@ class LiteRTLMEngine(private val context: Context) {
                 }
 
                 val fullResponse = StringBuilder()
-                activeConv.sendMessageAsync(prompt).collect { messageToken ->
-                    val tokenText = messageToken.text ?: ""
+                activeConv.sendMessageAsync(prompt).collect { token ->
+                    val tokenText = token.toString()
                     if (tokenText.isNotEmpty()) {
                         fullResponse.append(tokenText)
                         withContext(Dispatchers.Main) {

@@ -8,271 +8,206 @@ import com.google.ai.edge.litertlm.Conversation
 import com.google.ai.edge.litertlm.ConversationConfig
 import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
-import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.SamplerConfig
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileOutputStream
-import java.io.InputStream
+
+/**
+ * EngineState representing the lifecycle of LiteRT-LM GPU Engine
+ */
+enum class EngineState {
+    UNINITIALIZED,
+    IMPORTING,
+    INITIALIZING,
+    READY,
+    ERROR
+}
 
 /**
  * LiteRTLMEngine
  * 
- * Manages On-Device Gemma 3 / LiteRT LLM Model strictly using official Google AI Edge LiteRT-LM API.
- * Uses com.google.ai.edge.litertlm.* with Backend.GPU() exclusively.
- * ZERO CPU fallback, zero mock data.
+ * Manages On-Device Gemma 3 / LiteRT LLM Model strictly mirroring Edge Gallery's architecture.
+ * - Creates Engine using model path with Backend.GPU() exclusively.
+ * - Asynchronously initializes the Engine (engine.initialize()).
+ * - Exposes a 'ready' state to the UI to prevent premature inference attempts.
+ * - Emits real token streams via active Conversation session.
  */
 class LiteRTLMEngine(private val context: Context) {
+
+    val assetLoader = AssetLoader(context)
+
+    private val _engineState = MutableStateFlow(EngineState.UNINITIALIZED)
+    val engineState: StateFlow<EngineState> = _engineState.asStateFlow()
+
     private var engine: Engine? = null
     private var conversation: Conversation? = null
+
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val initMutex = Mutex()
+    private val inferenceMutex = Mutex()
 
     private var isGpuActive = true
-    private var isModelInitialized = false
-    private var isImporting = false
     private var importProgressPercent = 0
     private var lastError: String? = null
 
-    companion object {
-        // Exact filename matching the user's downloaded LiteRT-LM binary
-        const val PRIMARY_MODEL_FILENAME = "gemma3-1b-it-int4.litertlm"
-        const val ALT_MODEL_FILENAME = "gemma-3-1b-it-gpu.litertlm"
-
-        // Minimum threshold for genuine Gemma 3 1B binary (~1.05 GB expected, min 500 MB)
-        const val MIN_VALID_MODEL_SIZE_BYTES = 500_000_000L
+    init {
+        // Auto-initialize asynchronously if valid model already exists
+        if (assetLoader.hasValidModel()) {
+            initializeAsync()
+        }
     }
 
     /**
-     * Resolves the active model file.
-     * 1. Checks Sensei private sandbox: `context.filesDir/models/gemma3-1b-it-int4.litertlm`
-     * 2. Checks system Download directory: `/storage/emulated/0/Download/gemma3-1b-it-int4.litertlm`
-     * 3. Checks alternate names and locations
+     * Exposes 'ready' state to the UI to prevent premature inference attempts.
      */
-    fun getActiveModelFile(): File {
-        // 1. Private storage primary
-        val primaryPrivate = File(context.filesDir, "models/$PRIMARY_MODEL_FILENAME")
-        if (primaryPrivate.exists() && primaryPrivate.length() >= MIN_VALID_MODEL_SIZE_BYTES) {
-            return primaryPrivate
-        }
+    fun isReady(): Boolean = _engineState.value == EngineState.READY && engine != null && conversation != null
 
-        // 2. Private storage alt
-        val altPrivate = File(context.filesDir, "models/$ALT_MODEL_FILENAME")
-        if (altPrivate.exists() && altPrivate.length() >= MIN_VALID_MODEL_SIZE_BYTES) {
-            return altPrivate
-        }
+    fun isInitializing(): Boolean = _engineState.value == EngineState.INITIALIZING
+    fun isImporting(): Boolean = _engineState.value == EngineState.IMPORTING
+    fun getImportProgress(): Int = importProgressPercent
+    fun getLastError(): String? = lastError
+    fun isGpu(): Boolean = isGpuActive
+    fun hasValidModel(): Boolean = assetLoader.hasValidModel()
+    fun getModelSizeBytes(): Long = assetLoader.getModelSizeBytes()
+    fun getModelPath(): String = assetLoader.getModelPath()
 
-        // 3. System Download folder auto-discovery
-        val downloadDirs = listOf(
-            android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS),
-            File("/storage/emulated/0/Download"),
-            File("/sdcard/Download"),
-            context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS)
-        )
-
-        for (dir in downloadDirs) {
-            if (dir != null && dir.exists()) {
-                val downloadModel = File(dir, PRIMARY_MODEL_FILENAME)
-                if (downloadModel.exists() && downloadModel.length() >= MIN_VALID_MODEL_SIZE_BYTES && downloadModel.canRead()) {
-                    return downloadModel
-                }
-                val downloadAlt = File(dir, ALT_MODEL_FILENAME)
-                if (downloadAlt.exists() && downloadAlt.length() >= MIN_VALID_MODEL_SIZE_BYTES && downloadAlt.canRead()) {
-                    return downloadAlt
-                }
+    /**
+     * Initializes the LiteRT-LM Engine asynchronously mirroring Edge Gallery.
+     */
+    fun initializeAsync(onComplete: ((Boolean, String?) -> Unit)? = null) {
+        scope.launch {
+            val success = initialize(useGpu = true)
+            withContext(Dispatchers.Main) {
+                onComplete?.invoke(success, lastError)
             }
         }
-
-        return primaryPrivate
     }
 
     /**
-     * Strictly verifies if a genuine .litertlm file exists in private storage
+     * Synchronous / Suspend initialization block with Backend.GPU()
      */
-    fun hasValidPrivateModel(): Boolean {
-        val file = getActiveModelFile()
-        return file.exists() && file.length() >= MIN_VALID_MODEL_SIZE_BYTES
-    }
+    suspend fun initialize(useGpu: Boolean = true): Boolean = initMutex.withLock {
+        withContext(Dispatchers.IO) {
+            try {
+                if (_engineState.value == EngineState.READY && engine != null && conversation != null) {
+                    return@withContext true
+                }
 
-    fun getModelSizeBytes(): Long {
-        val file = getActiveModelFile()
-        return if (file.exists()) file.length() else 0L
-    }
+                _engineState.value = EngineState.INITIALIZING
+                lastError = null
+                isGpuActive = true
 
-    fun getModelPath(): String = getActiveModelFile().absolutePath
+                if (!assetLoader.hasValidModel()) {
+                    _engineState.value = EngineState.UNINITIALIZED
+                    lastError = "MODEL_NOT_LOADED: Gemma 3 .litertlm model dosyası bulunamadı (Boyut < 500MB)."
+                    return@withContext false
+                }
 
-    /**
-     * Initializes LiteRT-LM Engine using official EngineConfig and Backend.GPU()
-     * Strictly on GPU - NO CPU fallback.
-     */
-    suspend fun initialize(useGpu: Boolean = true): Boolean = withContext(Dispatchers.IO) {
-        try {
-            isGpuActive = true
-            lastError = null
+                val modelFile = assetLoader.getActiveModelFile()
+                if (!modelFile.exists() || !modelFile.canRead()) {
+                    _engineState.value = EngineState.ERROR
+                    lastError = "MODEL_UNREADABLE: Model dosyası okunamıyor: ${modelFile.absolutePath}"
+                    return@withContext false
+                }
 
-            if (!hasValidPrivateModel()) {
-                isModelInitialized = false
-                lastError = "MODEL_NOT_LOADED: Gerçek .litertlm dosyası private storage'da bulunamadı (Boyut < 500MB)."
-                return@withContext false
-            }
+                // Close previous instance if open
+                closeInternal()
 
-            val targetModel = getActiveModelFile()
-
-            close()
-
-            // Official Google AI Edge LiteRT-LM Engine Configuration for GPU
-            val config = EngineConfig(
-                modelPath = targetModel.absolutePath,
-                backend = Backend.GPU()
-            )
-
-            val newEngine = Engine(config)
-            newEngine.initialize()
-            engine = newEngine
-
-            // Initialize active conversation session with standard Gemma 3 sampler
-            val conversationConfig = ConversationConfig(
-                samplerConfig = SamplerConfig(
-                    temperature = 0.7f,
-                    topK = 40
+                // 1. Create EngineConfig with Backend.GPU()
+                val config = EngineConfig(
+                    modelPath = modelFile.absolutePath,
+                    backend = Backend.GPU()
                 )
-            )
-            conversation = newEngine.createConversation(conversationConfig)
 
-            isModelInitialized = true
-            true
-        } catch (e: Throwable) {
-            e.printStackTrace()
-            isModelInitialized = false
-            engine = null
-            conversation = null
-            lastError = "ENGINE_INIT_FAILED: ${e.localizedMessage ?: e.javaClass.simpleName}"
-            false
+                // 2. Instantiate Engine
+                val newEngine = Engine(config)
+
+                // 3. Initialize Engine asynchronously on IO thread
+                newEngine.initialize()
+                engine = newEngine
+
+                // 4. Create active Conversation with standard Gemma 3 sampler
+                val conversationConfig = ConversationConfig(
+                    samplerConfig = SamplerConfig(
+                        temperature = 0.7f,
+                        topK = 40
+                    )
+                )
+                conversation = newEngine.createConversation(conversationConfig)
+
+                _engineState.value = EngineState.READY
+                true
+            } catch (e: Throwable) {
+                e.printStackTrace()
+                closeInternal()
+                _engineState.value = EngineState.ERROR
+                lastError = "ENGINE_INIT_FAILED: ${e.localizedMessage ?: e.javaClass.simpleName}"
+                false
+            }
         }
     }
 
     /**
-     * Imports genuine .litertlm model from Android Storage Access Framework (SAF) URI
-     * directly into Sensei private storage without internet download.
+     * Handles model selection from SAF URI via AssetLoader and initializes Engine upon completion.
      */
     fun importModelFromUri(
         uri: Uri,
         onProgress: (percent: Int, copiedBytes: Long, totalBytes: Long) -> Unit,
         onComplete: (success: Boolean, message: String) -> Unit
     ) {
-        if (isImporting) {
-            onComplete(false, "Dosya aktarımı zaten devam ediyor.")
+        if (_engineState.value == EngineState.IMPORTING) {
+            onComplete(false, "Model aktarımı zaten devam ediyor.")
             return
         }
 
-        isImporting = true
+        _engineState.value = EngineState.IMPORTING
         importProgressPercent = 0
         lastError = null
 
         scope.launch(Dispatchers.IO) {
-            var inputStream: InputStream? = null
-            var outputStream: FileOutputStream? = null
-            val targetFile = File(context.filesDir, "models/$PRIMARY_MODEL_FILENAME")
-            val tempFile = File(context.filesDir, "models/$PRIMARY_MODEL_FILENAME.importing")
-
             try {
-                targetFile.parentFile?.mkdirs()
-                if (tempFile.exists()) tempFile.delete()
-
-                val contentResolver = context.contentResolver
-                val totalBytes = try {
-                    val pfd = contentResolver.openFileDescriptor(uri, "r")
-                    val size = pfd?.statSize ?: -1L
-                    pfd?.close()
-                    size
-                } catch (e: Exception) {
-                    -1L
+                // Copy/load model into app private sandbox
+                val file = assetLoader.loadModelFromUri(uri) { percent, copied, total ->
+                    importProgressPercent = percent
+                    onProgress(percent, copied, total)
                 }
 
-                inputStream = contentResolver.openInputStream(uri)
-                    ?: throw IllegalStateException("Seçilen model dosyası açılamadı.")
-
-                outputStream = FileOutputStream(tempFile)
-                val buffer = ByteArray(1024 * 256) // 256 KB buffer for high speed flash transfer
-                var bytesCopied: Long = 0
-                var read: Int
-                var lastReported = 0
-
-                while (inputStream.read(buffer).also { read = it } != -1) {
-                    outputStream.write(buffer, 0, read)
-                    bytesCopied += read
-
-                    val progress = if (totalBytes > 0) {
-                        ((bytesCopied * 100) / totalBytes).toInt().coerceIn(0, 99)
-                    } else {
-                        // Estimated progress based on expected ~1.05 GB size
-                        ((bytesCopied * 100) / 1_100_000_000L).toInt().coerceIn(0, 99)
-                    }
-
-                    if (progress != lastReported) {
-                        lastReported = progress
-                        importProgressPercent = progress
-                        val reportedTotal = if (totalBytes > 0) totalBytes else bytesCopied
-                        onProgress(progress, bytesCopied, reportedTotal)
-                    }
+                if (!file.exists() || file.length() < AssetLoader.MIN_MODEL_SIZE_BYTES) {
+                    throw IllegalStateException("Aktarılan model dosyası doğrulanamadı.")
                 }
 
-                outputStream.flush()
-                outputStream.close()
-                inputStream.close()
-
-                if (targetFile.exists()) {
-                    targetFile.delete()
-                }
-
-                var renamed = tempFile.renameTo(targetFile)
-                if (!renamed || !targetFile.exists()) {
-                    tempFile.inputStream().use { inStream ->
-                        targetFile.outputStream().use { outStream ->
-                            inStream.copyTo(outStream)
-                        }
-                    }
-                    tempFile.delete()
-                    renamed = targetFile.exists()
-                }
-
-                if (!renamed || targetFile.length() < MIN_VALID_MODEL_SIZE_BYTES) {
-                    throw IllegalStateException("Aktarılan model dosyası doğrulanamadı (Boyut: ${targetFile.length()} bytes, Minimum: $MIN_VALID_MODEL_SIZE_BYTES bytes).")
-                }
-
-                isImporting = false
-                importProgressPercent = 100
-
-                // Initialize Engine strictly on GPU
+                // Initialize Engine with GPU
                 val initSuccess = initialize(useGpu = true)
 
                 withContext(Dispatchers.Main) {
                     if (initSuccess) {
-                        onComplete(true, "Model başarıyla aktarıldı ve GPU üzerinde kullanıma hazır.")
+                        onComplete(true, "Model başarıyla yüklendi ve GPU üzerinde hazır.")
                     } else {
-                        onComplete(false, "Model aktarıldı fakat GPU motoru başlatılamadı: $lastError")
+                        onComplete(false, "Model yüklendi fakat GPU başlatılamadı: $lastError")
                     }
                 }
-
             } catch (e: Exception) {
-                isImporting = false
+                _engineState.value = EngineState.ERROR
                 lastError = e.localizedMessage
-                if (tempFile.exists()) tempFile.delete()
                 withContext(Dispatchers.Main) {
                     onComplete(false, "Model aktarım hatası: ${e.localizedMessage}")
                 }
-            } finally {
-                try {
-                    outputStream?.close()
-                    inputStream?.close()
-                } catch (_: Exception) {}
             }
         }
     }
 
     /**
-     * Executes real On-Device Gemma 3 / LiteRT inference using LiteRT-LM Engine on GPU.
-     * ZERO MOCK / ZERO FALLBACK. If model is not ready, strictly throws MODEL_NOT_LOADED.
+     * Executes On-Device Gemma 3 inference with LiteRT-LM Engine on GPU.
+     * Prevents premature inference attempts when engine is not in READY state.
      */
     fun generateStream(
         prompt: String,
@@ -281,60 +216,75 @@ class LiteRTLMEngine(private val context: Context) {
         onError: (String) -> Unit
     ) {
         scope.launch {
-            try {
-                if (!isModelInitialized || conversation == null) {
-                    val initOk = initialize(useGpu = true)
-                    if (!initOk || conversation == null) {
-                        onError("MODEL_NOT_LOADED: Gemma 3 GPU motoru başlatılamadı ($lastError). Lütfen model dosyasını kontrol edin.")
-                        return@launch
-                    }
-                }
-
-                val activeConv = conversation
-                if (activeConv == null) {
-                    onError("MODEL_NOT_LOADED: Aktif LiteRT-LM Conversation oturumu bulunamadı.")
-                    return@launch
-                }
-
-                val fullResponse = StringBuilder()
-                val contents = Contents.of(prompt)
-                activeConv.sendMessageAsync(contents).collect { message ->
-                    val tokenText = message.text
-                    if (tokenText.isNotEmpty()) {
-                        fullResponse.append(tokenText)
-                        withContext(Dispatchers.Main) {
-                            onToken(tokenText)
+            inferenceMutex.withLock {
+                try {
+                    // Prevent premature inference attempts
+                    if (!isReady()) {
+                        // Attempt one-time lazy init if model file exists
+                        if (assetLoader.hasValidModel() && _engineState.value != EngineState.INITIALIZING) {
+                            val initOk = initialize(useGpu = true)
+                            if (!initOk || !isReady()) {
+                                withContext(Dispatchers.Main) {
+                                    onError("MODEL_NOT_READY: Gemma 3 GPU motoru hazır değil ($lastError). Lütfen modelin yüklenmesini bekleyin.")
+                                }
+                                return@launch
+                            }
+                        } else {
+                            withContext(Dispatchers.Main) {
+                                onError("MODEL_NOT_LOADED: Gemma 3 GPU motoru henüz hazır değil (Durum: ${_engineState.value}). Lütfen önce modeli seçin.")
+                            }
+                            return@launch
                         }
                     }
-                }
 
-                val finalOutput = fullResponse.toString()
-                withContext(Dispatchers.Main) {
-                    onComplete(finalOutput)
-                }
+                    val activeConv = conversation
+                    if (activeConv == null) {
+                        withContext(Dispatchers.Main) {
+                            onError("CONVERSATION_NULL: Aktif LiteRT-LM Conversation oturumu bulunamadı.")
+                        }
+                        return@launch
+                    }
 
-            } catch (e: Throwable) {
-                onError("INFERENCE_FAILED: ${e.localizedMessage ?: e.javaClass.simpleName}")
+                    val fullResponse = StringBuilder()
+                    val contents = Contents.of(prompt)
+
+                    activeConv.sendMessageAsync(contents).collect { message ->
+                        val tokenText = message.text
+                        if (tokenText.isNotEmpty()) {
+                            fullResponse.append(tokenText)
+                            withContext(Dispatchers.Main) {
+                                onToken(tokenText)
+                            }
+                        }
+                    }
+
+                    val finalOutput = fullResponse.toString()
+                    withContext(Dispatchers.Main) {
+                        onComplete(finalOutput)
+                    }
+
+                } catch (e: Throwable) {
+                    withContext(Dispatchers.Main) {
+                        onError("INFERENCE_FAILED: ${e.localizedMessage ?: e.javaClass.simpleName}")
+                    }
+                }
             }
         }
     }
 
     /**
-     * Deletes the local private model file
+     * Deletes the local private model and clears persisted URI state
      */
     fun deleteModel(): Boolean {
         close()
-        val file = getActiveModelFile()
-        return if (file.exists()) file.delete() else true
+        return assetLoader.clearPersistedModel()
     }
 
-    fun isGpu(): Boolean = isGpuActive
-    fun isReady(): Boolean = isModelInitialized && engine != null
-    fun isCurrentlyImporting(): Boolean = isImporting
-    fun getImportProgress(): Int = importProgressPercent
-    fun getLastError(): String? = lastError
-
     fun close() {
+        closeInternal()
+    }
+
+    private fun closeInternal() {
         try {
             conversation?.close()
             engine?.close()
@@ -343,7 +293,7 @@ class LiteRTLMEngine(private val context: Context) {
         } finally {
             conversation = null
             engine = null
-            isModelInitialized = false
+            _engineState.value = EngineState.UNINITIALIZED
         }
     }
 }

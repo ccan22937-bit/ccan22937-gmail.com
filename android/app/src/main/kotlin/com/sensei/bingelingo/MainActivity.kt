@@ -51,16 +51,8 @@ class MainActivity : AppCompatActivity() {
             }
 
             if (uri != null) {
-                try {
-                    val takeFlags = (dataIntent.flags) and Intent.FLAG_GRANT_READ_URI_PERMISSION
-                    if (takeFlags != 0) {
-                        contentResolver.takePersistableUriPermission(uri, takeFlags)
-                    } else {
-                        contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    }
-                } catch (e: Exception) {
-                    // Continue even if persistable permission fails: read grant is already active
-                }
+                val takeFlags = dataIntent.flags
+                litertEngine.assetLoader.persistUriPermission(uri, takeFlags)
                 litertBridge.handleModelFileSelected(uri)
             } else {
                 litertBridge.notifyModelSelectionCancelled()
@@ -82,7 +74,7 @@ class MainActivity : AppCompatActivity() {
 
             if (uri != null) {
                 fileUploadCallback?.onReceiveValue(arrayOf(uri))
-                // Also notify litert bridge if it is a model file
+                litertEngine.assetLoader.persistUriPermission(uri, dataIntent.flags)
                 litertBridge.handleModelFileSelected(uri)
             } else {
                 fileUploadCallback?.onReceiveValue(null)
@@ -94,32 +86,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Launches Android Storage Access Framework (SAF) to pick the .litertlm file from Download folder
+     * Launches Android Storage Access Framework (SAF) via AssetLoader to pick .litertlm model
      */
     fun launchModelPicker() {
         runOnUiThread {
             try {
-                // Primary: ACTION_OPEN_DOCUMENT with broad MIME handling
-                val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                    addCategory(Intent.CATEGORY_OPENABLE)
-                    type = "*/*"
-                    putExtra(
-                        Intent.EXTRA_MIME_TYPES,
-                        arrayOf(
-                            "*/*",
-                            "application/octet-stream",
-                            "application/x-binary",
-                            "application/binary",
-                            "application/x-litertlm"
-                        )
-                    )
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
-                }
+                val intent = litertEngine.assetLoader.createOpenDocumentIntent()
                 modelPickerLauncher.launch(intent)
             } catch (e: Exception) {
                 try {
-                    // Secondary: ACTION_GET_CONTENT fallback with chooser
                     val getContentIntent = Intent(Intent.ACTION_GET_CONTENT).apply {
                         addCategory(Intent.CATEGORY_OPENABLE)
                         type = "*/*"

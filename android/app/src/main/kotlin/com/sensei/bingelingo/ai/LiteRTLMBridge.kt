@@ -32,10 +32,10 @@ class LiteRTLMBridge(
     fun isModelReady(): Boolean = litertEngine.isReady()
 
     @JavascriptInterface
-    fun hasValidModel(): Boolean = litertEngine.hasValidPrivateModel()
+    fun hasValidModel(): Boolean = litertEngine.hasValidModel()
 
     @JavascriptInterface
-    fun isImporting(): Boolean = litertEngine.isCurrentlyImporting()
+    fun isImporting(): Boolean = litertEngine.isImporting()
 
     @JavascriptInterface
     fun getImportProgress(): Int = litertEngine.getImportProgress()
@@ -123,8 +123,8 @@ class LiteRTLMBridge(
         json.put("backend", if (litertEngine.isGpu()) "GPU (OpenCL / Vulkan)" else "CPU")
         json.put("isGpuAccelerated", litertEngine.isGpu())
         json.put("isReady", litertEngine.isReady())
-        json.put("hasValidModel", litertEngine.hasValidPrivateModel())
-        json.put("isImporting", litertEngine.isCurrentlyImporting())
+        json.put("hasValidModel", litertEngine.hasValidModel())
+        json.put("isImporting", litertEngine.isImporting())
         json.put("importProgress", litertEngine.getImportProgress())
         json.put("storagePath", litertEngine.getModelPath())
         json.put("sizeBytes", litertEngine.getModelSizeBytes())

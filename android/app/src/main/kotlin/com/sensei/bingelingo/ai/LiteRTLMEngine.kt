@@ -3,6 +3,7 @@ package com.sensei.bingelingo.ai
 import android.content.Context
 import android.net.Uri
 import com.google.ai.edge.litertlm.Backend
+import com.google.ai.edge.litertlm.Contents
 import com.google.ai.edge.litertlm.Conversation
 import com.google.ai.edge.litertlm.ConversationConfig
 import com.google.ai.edge.litertlm.Engine
@@ -295,8 +296,8 @@ class LiteRTLMEngine(private val context: Context) {
                 }
 
                 val fullResponse = StringBuilder()
-                val userMsg = Message.of(prompt)
-                activeConv.sendMessageAsync(userMsg).collect { message ->
+                val contents = Contents.of(prompt)
+                activeConv.sendMessageAsync(contents).collect { message ->
                     val tokenText = message.text
                     if (tokenText.isNotEmpty()) {
                         fullResponse.append(tokenText)

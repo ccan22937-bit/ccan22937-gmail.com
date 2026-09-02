@@ -127,6 +127,7 @@ class LiteRTLMEngine(private val context: Context) {
             )
 
             val newEngine = Engine(config)
+            newEngine.initialize()
             engine = newEngine
 
             // Initialize active conversation session with standard Gemma 3 sampler

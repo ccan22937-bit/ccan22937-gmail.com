@@ -194,7 +194,9 @@ class AssetLoader(private val context: Context) {
                 outputStream?.close()
                 inputStream?.close()
                 if (tempFile.exists()) tempFile.delete()
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                // Ignore cleanup errors
+            }
         }
     }
 
@@ -217,7 +219,7 @@ class AssetLoader(private val context: Context) {
         }
 
         // 2. System Download directory discovery
-        val downloadDirs = listOf(
+        val downloadDirs = listOfNotNull(
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
             File("/storage/emulated/0/Download"),
             File("/sdcard/Download"),
@@ -225,7 +227,7 @@ class AssetLoader(private val context: Context) {
         )
 
         for (dir in downloadDirs) {
-            if (dir != null && dir.exists()) {
+            if (dir.exists()) {
                 val modelFile = File(dir, MODEL_FILENAME)
                 if (modelFile.exists() && modelFile.length() >= MIN_MODEL_SIZE_BYTES && modelFile.canRead()) {
                     return modelFile

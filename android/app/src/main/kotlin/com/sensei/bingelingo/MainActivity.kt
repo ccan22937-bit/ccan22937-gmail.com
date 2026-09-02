@@ -1,6 +1,7 @@
 package com.sensei.bingelingo
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -43,7 +44,7 @@ class MainActivity : AppCompatActivity() {
     private val modelPickerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        if (result.resultCode == RESULT_OK && result.data != null) {
+        if (result.resultCode == Activity.RESULT_OK && result.data != null) {
             val dataIntent = result.data!!
             // Handle both single data URI and ClipData (multiple/custom file managers)
             val uri: Uri? = dataIntent.data ?: dataIntent.clipData?.let { clip ->
@@ -66,7 +67,7 @@ class MainActivity : AppCompatActivity() {
     private val htmlFilePickerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        if (result.resultCode == RESULT_OK && result.data != null) {
+        if (result.resultCode == Activity.RESULT_OK && result.data != null) {
             val dataIntent = result.data!!
             val uri: Uri? = dataIntent.data ?: dataIntent.clipData?.let { clip ->
                 if (clip.itemCount > 0) clip.getItemAt(0).uri else null
@@ -181,7 +182,7 @@ class MainActivity : AppCompatActivity() {
 
         // 4. Pre-warm Gemma on GPU if .litertlm is already copied
         lifecycleScope.launch(Dispatchers.IO) {
-            if (litertEngine.hasValidPrivateModel()) {
+            if (litertEngine.hasValidModel()) {
                 litertEngine.initialize(useGpu = true)
             }
         }

@@ -8,6 +8,7 @@ import com.google.ai.edge.litertlm.Conversation
 import com.google.ai.edge.litertlm.ConversationConfig
 import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
+import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.SamplerConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -73,10 +74,12 @@ class LiteRTLMEngine(private val context: Context) {
 
     fun isInitializing(): Boolean = _engineState.value == EngineState.INITIALIZING
     fun isImporting(): Boolean = _engineState.value == EngineState.IMPORTING
+    fun isCurrentlyImporting(): Boolean = isImporting()
     fun getImportProgress(): Int = importProgressPercent
     fun getLastError(): String? = lastError
     fun isGpu(): Boolean = isGpuActive
     fun hasValidModel(): Boolean = assetLoader.hasValidModel()
+    fun hasValidPrivateModel(): Boolean = hasValidModel()
     fun getModelSizeBytes(): Long = assetLoader.getModelSizeBytes()
     fun getModelPath(): String = assetLoader.getModelPath()
 

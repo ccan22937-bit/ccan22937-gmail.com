@@ -43,7 +43,7 @@ android {
             excludes.add("META-INF/NOTICE.txt")
             excludes.add("META-INF/notice.txt")
             excludes.add("META-INF/ASL2.0")
-            excludes.add("META-INF/*.kotlin_module")
+            excludes.add("META-INF/INDEX.LIST")
         }
         jniLibs {
             pickFirsts.add("**/liblitertlm*.so")

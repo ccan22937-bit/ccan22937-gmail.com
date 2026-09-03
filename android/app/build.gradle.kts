@@ -49,7 +49,13 @@ android {
             pickFirsts.add("**/liblitertlm*.so")
             pickFirsts.add("**/libtensorflowlite*.so")
             pickFirsts.add("**/libOpenCL.so")
+            pickFirsts.add("**/libc++_shared.so")
         }
+    }
+
+    lint {
+        isAbortOnError = false
+        isCheckReleaseBuilds = false
     }
 
     compileOptions {

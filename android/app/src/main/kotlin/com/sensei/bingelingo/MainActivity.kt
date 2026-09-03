@@ -188,13 +188,23 @@ class MainActivity : AppCompatActivity() {
         }
 
         // 5. Load App with fallback check
+        val hasDirectIndex = try {
+            assets.open("index.html").close()
+            true
+        } catch (e: Exception) {
+            false
+        }
         val hasDist = try {
             assets.open("dist/index.html").close()
             true
         } catch (e: Exception) {
             false
         }
-        val targetUrl = if (hasDist) "file:///android_asset/dist/index.html" else "file:///android_asset/public/index.html"
+        val targetUrl = when {
+            hasDirectIndex -> "file:///android_asset/index.html"
+            hasDist -> "file:///android_asset/dist/index.html"
+            else -> "file:///android_asset/public/index.html"
+        }
         webView.loadUrl(targetUrl)
     }
 

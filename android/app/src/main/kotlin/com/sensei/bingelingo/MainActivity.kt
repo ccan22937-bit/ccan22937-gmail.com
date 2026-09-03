@@ -180,8 +180,11 @@ class MainActivity : AppCompatActivity() {
         webView.addJavascriptInterface(ttsBridge, "SenseiTTS")
         webView.addJavascriptInterface(ttsBridge, "SenseiAudio")
 
-        // 4. Pre-warm Gemma on GPU if .litertlm is already copied
+        // 4. Auto-prepare bundled model and pre-warm Gemma on GPU (Zero-config on-device AI)
         lifecycleScope.launch(Dispatchers.IO) {
+            litertEngine.assetLoader.autoPrepareBundledModel { percent, copiedBytes, totalBytes ->
+                litertBridge.notifyAutoExtractProgress(percent, copiedBytes, totalBytes)
+            }
             if (litertEngine.hasValidModel()) {
                 litertEngine.initialize(useGpu = true)
             }

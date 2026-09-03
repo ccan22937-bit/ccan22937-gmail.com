@@ -28,6 +28,10 @@ android {
         }
     }
 
+    androidResources {
+        noCompress.addAll(listOf("litertlm", "bin", "tflite"))
+    }
+
     packaging {
         resources {
             excludes.add("META-INF/DEPENDENCIES")

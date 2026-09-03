@@ -102,6 +102,30 @@ class LiteRTLMBridge(
         }
     }
 
+    fun notifyAutoExtractProgress(percent: Int, copiedBytes: Long, totalBytes: Long) {
+        mainScope.launch {
+            val mbCopied = String.format("%.1f", copiedBytes / (1024.0 * 1024.0))
+            val mbTotal = String.format("%.1f", totalBytes / (1024.0 * 1024.0))
+            webView.evaluateJavascript(
+                "window.__litert_on_import_progress?.($percent, '$mbCopied MB', '$mbTotal MB');",
+                null
+            )
+        }
+    }
+
+    @JavascriptInterface
+    fun autoInitialize(): Boolean {
+        mainScope.launch(Dispatchers.IO) {
+            litertEngine.assetLoader.autoPrepareBundledModel { percent, copied, total ->
+                notifyAutoExtractProgress(percent, copied, total)
+            }
+            if (litertEngine.hasValidModel()) {
+                litertEngine.initialize(useGpu = true)
+            }
+        }
+        return true
+    }
+
     @JavascriptInterface
     fun initModel(useGpu: Boolean): Boolean {
         var success = false

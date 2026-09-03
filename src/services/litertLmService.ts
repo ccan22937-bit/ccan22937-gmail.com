@@ -47,6 +47,7 @@ declare global {
       getLastError?: () => string;
       openModelPicker?: () => void;
       initModel?: (useGpu: boolean) => boolean;
+      autoInitialize?: () => boolean;
       deleteModel?: () => boolean;
       getModelInfo?: () => string;
       generateStream?: (prompt: string, callbackId: string) => void;
@@ -185,6 +186,17 @@ export async function initializeGemma3LiteRT(useGpu: boolean = true): Promise<bo
   }
 
   setStatus('unloaded');
+  return false;
+}
+
+/**
+ * Triggers zero-config background model preparation and GPU initialization
+ */
+export function autoInitializeGemma3LiteRT(): boolean {
+  if (isAndroidLiteRTAvailable() && window.LiteRTLM?.autoInitialize) {
+    setStatus('loading');
+    return window.LiteRTLM.autoInitialize();
+  }
   return false;
 }
 

@@ -11,6 +11,7 @@
     "clean": "rm -rf dist",
     "cap:sync": "cap sync android",
     "cap:build": "vite build && cap sync android",
+    "sync:android": "cp -r dist/* android/app/src/main/assets/",
     "lint": "tsc --noEmit"
   },
   "dependencies": {

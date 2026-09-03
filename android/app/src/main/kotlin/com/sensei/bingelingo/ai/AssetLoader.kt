@@ -201,6 +201,93 @@ class AssetLoader(private val context: Context) {
     }
 
     /**
+     * Checks if the APK contains a bundled model file in assets/models/ or assets/
+     * and automatically extracts it to private storage on first launch.
+     * This provides a true zero-configuration, single-click install experience for end users.
+     */
+    suspend fun autoPrepareBundledModel(
+        onProgress: (percent: Int, copiedBytes: Long, totalBytes: Long) -> Unit = { _, _, _ -> }
+    ): File? = withContext(Dispatchers.IO) {
+        // 1. If already extracted and valid in private storage, return immediately
+        val active = getActiveModelFile()
+        if (active.exists() && active.length() >= MIN_MODEL_SIZE_BYTES) {
+            return@withContext active
+        }
+
+        // 2. Check candidates in APK assets
+        val candidates = listOf(
+            "models/$MODEL_FILENAME",
+            "models/$ALT_MODEL_FILENAME",
+            MODEL_FILENAME,
+            ALT_MODEL_FILENAME
+        )
+
+        var foundAssetPath: String? = null
+        for (candidate in candidates) {
+            try {
+                val stream = context.assets.open(candidate)
+                val available = stream.available()
+                stream.close()
+                if (available > 0) {
+                    foundAssetPath = candidate
+                    break
+                }
+            } catch (ignored: Exception) {
+            }
+        }
+
+        if (foundAssetPath == null) {
+            return@withContext if (hasValidModel()) getActiveModelFile() else null
+        }
+
+        val targetDir = File(context.filesDir, "models")
+        if (!targetDir.exists()) targetDir.mkdirs()
+        val targetFile = File(targetDir, MODEL_FILENAME)
+        val tempFile = File(targetDir, "$MODEL_FILENAME.extracting")
+
+        try {
+            if (tempFile.exists()) tempFile.delete()
+            val inputStream = context.assets.open(foundAssetPath)
+            val outputStream = FileOutputStream(tempFile)
+            val buffer = ByteArray(1024 * 512) // 512 KB high speed buffer
+            var bytesCopied: Long = 0
+            var read: Int
+            var lastPercent = -1
+
+            val totalBytes = try {
+                val fd = context.assets.openFd(foundAssetPath)
+                val len = fd.length
+                fd.close()
+                if (len > 0) len else 1_050_000_000L
+            } catch (e: Exception) {
+                1_050_000_000L
+            }
+
+            while (inputStream.read(buffer).also { read = it } != -1) {
+                outputStream.write(buffer, 0, read)
+                bytesCopied += read
+                val percent = ((bytesCopied * 100) / totalBytes).toInt().coerceIn(0, 99)
+                if (percent != lastPercent) {
+                    lastPercent = percent
+                    onProgress(percent, bytesCopied, totalBytes)
+                }
+            }
+            outputStream.flush()
+            outputStream.close()
+            inputStream.close()
+
+            if (targetFile.exists()) targetFile.delete()
+            tempFile.renameTo(targetFile)
+            onProgress(100, targetFile.length(), targetFile.length())
+            targetFile
+        } catch (e: Exception) {
+            e.printStackTrace()
+            if (tempFile.exists()) tempFile.delete()
+            null
+        }
+    }
+
+    /**
      * Resolves the active model file, prioritizing:
      * 1. Private sandbox: context.filesDir/models/gemma3-1b-it-int4.litertlm
      * 2. Alternate private name: gemma-3-1b-it-gpu.litertlm

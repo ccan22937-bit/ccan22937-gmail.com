@@ -60,9 +60,9 @@ jobs:
         working-directory: ./android
         run: |
           if [ -f "./gradlew" ]; then
-            ./gradlew assembleDebug --no-daemon --stacktrace
+            ./gradlew assembleDebug --no-daemon --stacktrace --info
           else
-            gradle assembleDebug --no-daemon --stacktrace
+            gradle assembleDebug --no-daemon --stacktrace --info
           fi
 
       - name: Upload Debug APK Artifact

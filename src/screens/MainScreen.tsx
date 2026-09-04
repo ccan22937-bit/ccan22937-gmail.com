@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Heart, Star, Lock, X, Store, User, Type, Home, Gift, BookOpen, Trophy, Bell, Send, CheckCircle2, AlertCircle, Mic } from 'lucide-react';
+import { Heart, Star, Lock, X, Store, User, Type, Home, Gift, BookOpen, Trophy, Bell, Send, CheckCircle2, AlertCircle, Mic, Sparkles } from 'lucide-react';
 import { ChestModal } from '../components/ChestModal';
 import { TreasureChest } from '../components/TreasureChest';
 import { cn } from '../lib/utils';
 import { Button } from '../components/ui/Button';
 import { AlphabetModal } from '../components/AlphabetModal';
 import { VoiceCoachModal } from '../components/VoiceCoachModal';
+import { WebLLMManagerModal } from '../components/WebLLMManagerModal';
 import { LiteRTTestScreen } from './LiteRTTestScreen';
 import { User as FirebaseUser } from 'firebase/auth';
 import { t } from '../data/translations';
@@ -79,6 +80,7 @@ export function MainScreen({ unlockedLevels, stars, hearts, onSelectDay, languag
   const [alphabetModalOpen, setAlphabetModalOpen] = useState(false);
   const [voiceCoachOpen, setVoiceCoachOpen] = useState(false);
   const [liteRTTestOpen, setLiteRTTestOpen] = useState(false);
+  const [webLLMModalOpen, setWebLLMModalOpen] = useState(false);
 
   const handleEnableBrowserNotifications = async () => {
     if (!('Notification' in window)) {
@@ -237,6 +239,34 @@ export function MainScreen({ unlockedLevels, stars, hearts, onSelectDay, languag
           <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[#00F0FF] group-hover:translate-x-1 transition-transform">
             →
           </div>
+        </motion.button>
+
+        {/* WebLLM Open-Source On-Device AI Quick Launch Card */}
+        <motion.button
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+          onClick={() => setWebLLMModalOpen(true)}
+          className="w-full mt-2.5 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 border border-amber-500/30 hover:border-amber-500/60 rounded-2xl p-3 flex items-center justify-between transition-all cursor-pointer group shadow-lg shadow-amber-500/5"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 group-hover:scale-105 transition-transform">
+              <Sparkles size={20} />
+            </div>
+            <div className="text-left">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs sm:text-sm font-bold text-neutral-200">Açık Kaynak Yerel Yapay Zeka</span>
+                <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30">
+                  Sıfır API / WebGPU
+                </span>
+              </div>
+              <p className="text-[10px] text-neutral-400">
+                Telefonunun grafik kartında çalışır. Kota, anahtar veya APK gerekmez.
+              </p>
+            </div>
+          </div>
+          <span className="text-xs text-amber-400 font-semibold px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 group-hover:bg-amber-500/25 transition-colors">
+            Yönet
+          </span>
         </motion.button>
       </div>
 
@@ -636,6 +666,7 @@ export function MainScreen({ unlockedLevels, stars, hearts, onSelectDay, languag
       </AnimatePresence>
       <AlphabetModal isOpen={alphabetModalOpen} onClose={() => setAlphabetModalOpen(false)} language={language} nativeLanguage={nativeLanguage} />
       <VoiceCoachModal isOpen={voiceCoachOpen} onClose={() => setVoiceCoachOpen(false)} targetLanguage={language} nativeLanguage={nativeLanguage} />
+      <WebLLMManagerModal isOpen={webLLMModalOpen} onClose={() => setWebLLMModalOpen(false)} targetLanguage={language} />
     </div>
   );
 }

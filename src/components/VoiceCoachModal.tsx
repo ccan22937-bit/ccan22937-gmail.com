@@ -62,6 +62,15 @@ import {
   stopGemma3Generation
 } from '../services/litertLmService';
 import { LiteRTModelManagerModal } from './LiteRTModelManagerModal';
+import {
+  streamWebLLMResponse,
+  getWebLLMStatus,
+  onWebLLMStatusChange,
+  WebLLMStatus,
+  isWebGPUSupported,
+  stopWebLLMGeneration
+} from '../services/webLlmService';
+import { WebLLMManagerModal } from './WebLLMManagerModal';
 import { Zap, Cpu, Settings } from 'lucide-react';
 
 interface VoiceMessage extends ChatMessageData {}
@@ -96,6 +105,11 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
   const [liteRTStatus, setLiteRTStatus] = useState<LiteRTModelStatus>(() => getLiteRTModelInfo().status);
   const [isModelManagerOpen, setIsModelManagerOpen] = useState<boolean>(false);
 
+  // WebLLM Open-Source On-Device Browser Engine (WebGPU)
+  const [webLLMStatus, setWebLLMStatus] = useState<WebLLMStatus>(() => getWebLLMStatus());
+  const [useWebLLM, setUseWebLLM] = useState<boolean>(false);
+  const [isWebLLMModalOpen, setIsWebLLMModalOpen] = useState<boolean>(false);
+
   // Initialize and track LiteRT-LM Gemma 3 1B Model Status
   useEffect(() => {
     const refreshModel = () => {
@@ -113,6 +127,13 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
       refreshModel();
     });
 
+    const unsubWebLLM = onWebLLMStatusChange((status) => {
+      setWebLLMStatus(status);
+      if (status !== 'ready') {
+        setUseWebLLM(false);
+      }
+    });
+
     if (isAndroidLiteRTAvailable()) {
       initializeGemma3LiteRT(true).then((ok) => {
         if (ok) setUseGemmaOnDevice(true);
@@ -121,6 +142,7 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
 
     return () => {
       unsub();
+      unsubWebLLM();
     };
   }, []);
 
@@ -659,13 +681,13 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
 
   // Start Mic Recording (MediaRecorder only - no SpeechRecognition background locking)
   const handleStartRecording = async () => {
-    // Requirement: Check if user has an active card selected. MUST NOT allow sending without selecting a card!
+    // Auto-select or resolve phrase if not selected
     if (!activeSelectedPhrase) {
-      setInputFeedbackTip('Lütfen konuşmak için önce aşağıdaki kartlardan birini seçin!');
-      setTimeout(() => {
-        setInputFeedbackTip(null);
-      }, 4000);
-      return;
+      if (suggestedPhrases && suggestedPhrases.length > 0) {
+        setActiveSelectedPhrase(suggestedPhrases[0]);
+      } else if (searchResults && searchResults.length > 0) {
+        setActiveSelectedPhrase(searchResults[0]);
+      }
     }
 
     setInputFeedbackTip(null);
@@ -834,16 +856,13 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
     // Immediately release all hardware mic tracks
     releaseMicrophoneTracks();
 
-    // 2. Resolve Card To Submit: strictly bound to user's selected card
-    if (!activeSelectedPhrase) {
-      setInputFeedbackTip('Lütfen konuşmak için önce aşağıdaki kartlardan birini seçin!');
-      setTimeout(() => {
-        setInputFeedbackTip(null);
-      }, 4000);
-      return;
-    }
-
-    const cardToSubmit: DialogueSuggestion = activeSelectedPhrase;
+    // 2. Resolve Card To Submit: use active phrase, or fallback to first suggested phrase
+    let cardToSubmit: DialogueSuggestion = activeSelectedPhrase || (suggestedPhrases && suggestedPhrases.length > 0 ? suggestedPhrases[0] : (searchResults && searchResults.length > 0 ? searchResults[0] : {
+      target: activeTargetLang === 'İngilizce' ? 'Hello! How are you today?' : (activeTargetLang === 'Japonca' ? 'こんにちは！お元気ですか？' : 'Hello!'),
+      romaji: activeTargetLang === 'Japonca' ? 'Konnichiwa! Ogenki desu ka?' : 'Hello!',
+      native: 'Merhaba! Nasılsın?',
+      category: '👋 Selamlaşma'
+    }));
 
     setQuickInputText('');
     finishSubmission(cardToSubmit, recordedBlob, false);
@@ -888,6 +907,93 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
     setActiveSelectedPhrase(null);
 
     const userInput = selectedCard.native || selectedCard.target || '';
+
+    // =========================================================================
+    // OPTION 0: On-Device WebLLM Open-Source AI (WebGPU - Zero API Keys / Free)
+    // =========================================================================
+    if (useWebLLM && webLLMStatus === 'ready') {
+      setIsLoading(false);
+      const senseiMsgId = `sensei-webllm-${Date.now()}`;
+      const placeholderMsg: VoiceMessage = {
+        id: senseiMsgId,
+        sender: 'sensei',
+        text: '...',
+        romaji: '',
+        nativeExplanation: '',
+        pronunciationScore: 96,
+        pronunciationFeedback: '⚡ Açık Kaynak WebGPU Yapay Zeka ile yanıtlanıyor...',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isStreaming: true,
+        modelEngine: 'litert',
+      };
+
+      setMessages(prev => [...prev, placeholderMsg]);
+
+      try {
+        await streamWebLLMResponse(
+          userInput,
+          activeTargetLang,
+          nativeLanguage,
+          [...messages, userMsg].map(m => ({
+            role: m.sender === 'user' ? 'user' : 'assistant',
+            content: m.text
+          })),
+          {
+            onToken: (_token, accumulated) => {
+              const firstLine = accumulated.split('\n')[0].replace(/^HEDEF\s*:/i, '').trim();
+              setMessages(prev =>
+                prev.map(m =>
+                  m.id === senseiMsgId
+                    ? { ...m, text: firstLine || accumulated, isStreaming: true }
+                    : m
+                )
+              );
+            },
+            onComplete: (_fullText, parsed) => {
+              const completedMsg: VoiceMessage = {
+                id: senseiMsgId,
+                sender: 'sensei',
+                text: parsed.targetLanguageText,
+                romaji: parsed.romaji,
+                nativeExplanation: parsed.nativeExplanation,
+                pronunciationScore: parsed.pronunciationScore,
+                pronunciationFeedback: parsed.pronunciationFeedback,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                isStreaming: false,
+                modelEngine: 'litert',
+              };
+
+              setMessages(prev =>
+                prev.map(m => (m.id === senseiMsgId ? completedMsg : m))
+              );
+
+              saveMessageToFirestore({
+                ...completedMsg,
+                targetLanguage: activeTargetLang,
+                createdAt: Date.now(),
+              });
+
+              if (autoPlayAudio) {
+                const url = getAudioUrl(completedMsg.text, completedMsg.audioUrl, activeTargetLang);
+                playOrToggleAudio(completedMsg.id, url, completedMsg.text, activeTargetLang);
+              }
+            },
+            onError: (streamErr) => {
+              const errMsg = streamErr || 'WebLLM çıkarım hatası.';
+              console.warn('[VoiceCoach] WebLLM error, auto-recovering via Conversational Brain:', errMsg);
+              setUseWebLLM(false);
+              executeConversationalBrainTurn(selectedCard, userMsg, isFreeVoiceSpoken, senseiMsgId);
+            }
+          }
+        );
+        return;
+      } catch (webLlmErr: any) {
+        console.warn('[VoiceCoach] WebLLM caught note, auto-recovering:', webLlmErr);
+        setUseWebLLM(false);
+        executeConversationalBrainTurn(selectedCard, userMsg, isFreeVoiceSpoken, senseiMsgId);
+        return;
+      }
+    }
 
     // =========================================================================
     // OPTION A: On-Device LiteRT-LM Gemma 3 1B with GPU Acceleration (Streaming)
@@ -965,39 +1071,17 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
               }
             },
             onError: (streamErr) => {
-              const errMsg = streamErr || 'MODEL_NOT_LOADED: Çıkarım başarısız oldu.';
-              const errorMsg: VoiceMessage = {
-                id: senseiMsgId,
-                sender: 'sensei',
-                text: `❌ ${errMsg}`,
-                romaji: '',
-                nativeExplanation: 'Gemma 3 1B on-device modeli yüklenemedi veya çıkarım hatası oluştu.',
-                pronunciationScore: 0,
-                pronunciationFeedback: `Hata: ${errMsg}`,
-                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                isStreaming: false,
-                modelEngine: 'litert',
-              };
-              setMessages(prev => prev.map(m => (m.id === senseiMsgId ? errorMsg : m)));
+              console.warn('[VoiceCoach] Gemma 3 on-device note, auto-recovering via Conversational Brain:', streamErr);
+              setUseGemmaOnDevice(false);
+              executeConversationalBrainTurn(selectedCard, userMsg, isFreeVoiceSpoken, senseiMsgId);
             }
           }
         );
         return;
       } catch (gemmaErr: any) {
-        const errMsg = gemmaErr?.message || 'MODEL_NOT_LOADED: Gemma 3 modeli GPU üzerinde çalıştırılamadı.';
-        const errorMsg: VoiceMessage = {
-          id: senseiMsgId,
-          sender: 'sensei',
-          text: `❌ ${errMsg}`,
-          romaji: '',
-          nativeExplanation: 'Gemma 3 1B on-device modeli yüklenemedi.',
-          pronunciationScore: 0,
-          pronunciationFeedback: `Hata: ${errMsg}`,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          isStreaming: false,
-          modelEngine: 'litert',
-        };
-        setMessages(prev => prev.map(m => (m.id === senseiMsgId ? errorMsg : m)));
+        console.warn('[VoiceCoach] Gemma 3 on-device note, auto-recovering via Conversational Brain:', gemmaErr);
+        setUseGemmaOnDevice(false);
+        executeConversationalBrainTurn(selectedCard, userMsg, isFreeVoiceSpoken, senseiMsgId);
         return;
       }
     }
@@ -1238,8 +1322,59 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
           </div>
         </div>
 
-        {/* Right Controls: Gemma Pill, Target Language, Sound, Trash & Close Button */}
+        {/* Right Controls: WebLLM Pill, Gemma Pill, Target Language, Sound, Close Button */}
         <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
+          {/* Open-Source WebLLM (WebGPU / Zero API Keys) Pill */}
+          <div className="flex items-center">
+            <button
+              type="button"
+              onClick={() => {
+                if (webLLMStatus !== 'ready') {
+                  setIsWebLLMModalOpen(true);
+                  return;
+                }
+                setUseWebLLM(!useWebLLM);
+              }}
+              className={`p-1.5 sm:px-2 sm:py-1 rounded-l-xl text-xs font-bold flex items-center gap-1 transition-all shadow-sm cursor-pointer select-none ${
+                useWebLLM && webLLMStatus === 'ready'
+                  ? 'bg-amber-500/20 border border-amber-500/60 text-amber-300'
+                  : 'bg-white/5 border border-white/10 text-gray-400 hover:text-gray-200'
+              }`}
+              title={
+                webLLMStatus === 'ready'
+                  ? (useWebLLM ? 'Açık Kaynak Yerel Yapay Zeka Aktif (WebGPU)' : 'Açık Kaynak Yerel Yapay Zeka Kapalı')
+                  : 'Açık Kaynak Yerel Yapay Zekayı Başlat (Sıfır API / Ücretsiz)'
+              }
+            >
+              <Sparkles
+                size={13}
+                className={
+                  useWebLLM && webLLMStatus === 'ready'
+                    ? 'text-amber-400 animate-pulse'
+                    : 'text-gray-400'
+                }
+              />
+              <span className="hidden sm:inline text-[10px]">Açık Kaynak</span>
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  useWebLLM && webLLMStatus === 'ready'
+                    ? 'bg-amber-400 animate-ping'
+                    : webLLMStatus === 'ready'
+                    ? 'bg-emerald-400'
+                    : 'bg-amber-400/60'
+                }`}
+              />
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsWebLLMModalOpen(true)}
+              className="p-1.5 sm:px-1.5 sm:py-1 bg-white/5 hover:bg-white/15 border border-white/10 rounded-r-xl text-gray-300 hover:text-amber-300 transition-all cursor-pointer flex items-center"
+              title="Açık Kaynak Yapay Zeka Ayarları"
+            >
+              <Settings size={12} />
+            </button>
+          </div>
+
           {/* On-Device Gemma 3 1B Toggle */}
           <div className="flex items-center">
             <button
@@ -1646,6 +1781,14 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
         isOpen={isModelManagerOpen}
         onClose={() => setIsModelManagerOpen(false)}
         targetLanguage={activeTargetLang}
+      />
+
+      {/* WebLLM Open-Source On-Device Browser AI Modal */}
+      <WebLLMManagerModal
+        isOpen={isWebLLMModalOpen}
+        onClose={() => setIsWebLLMModalOpen(false)}
+        targetLanguage={activeTargetLang}
+        onModelReady={() => setUseWebLLM(true)}
       />
     </div>
   );

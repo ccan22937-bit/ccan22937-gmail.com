@@ -72,6 +72,8 @@ import {
 } from '../services/webLlmService';
 import { WebLLMManagerModal } from './WebLLMManagerModal';
 import { Zap, Cpu, Settings } from 'lucide-react';
+import { auth, isUserAppOwner } from '../services/firebase';
+import { triggerTactilePress } from '../utils/haptics';
 
 interface VoiceMessage extends ChatMessageData {}
 
@@ -89,6 +91,7 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
   nativeLanguage = 'Türkçe',
 }) => {
   const activeTargetLang = initialTargetLanguage || 'Japonca';
+  const isOwner = isUserAppOwner(auth.currentUser);
   const [messages, setMessages] = useState<VoiceMessage[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [isRecordingPaused, setIsRecordingPaused] = useState(false);
@@ -1112,40 +1115,78 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
 
       const userInput = selectedCard.native || selectedCard.target || '';
 
-      // 1. Önce Small Conversational Brain üzerinden yerel & zengin bağlamsal yanıt üret
-      const brainResponse = await smallConversationalBrain.processTurn(
-        userInput,
-        activeTargetLang,
-        nativeLanguage,
-        [...messages, userMsg]
-      );
-
-      if (brainResponse && brainResponse.targetLanguageText) {
-        senseiTargetText = brainResponse.targetLanguageText;
-        senseiRomaji = brainResponse.romaji || brainResponse.targetLanguageText;
-        senseiTurkishExplanation = brainResponse.nativeExplanation || brainResponse.targetLanguageText;
-        senseiScore = brainResponse.pronunciationScore || 98;
-        senseiFeedback = brainResponse.pronunciationFeedback || 'Harika ve çok doğal bir diyalog!';
-        if (Array.isArray(brainResponse.suggestedReplies) && brainResponse.suggestedReplies.length > 0) {
-          newReplies = brainResponse.suggestedReplies;
+      // 1. Önce sunucudaki merkezi yapay zeka (Gemini AI / Doğal Sohbet Protokolü) üzerinden yanıt almayı dene
+      // Böylece kullanıcılar herhangi bir model bağlamak veya API anahtarı girmek zorunda kalmaz!
+      let serverAiSuccess = false;
+      try {
+        const response = await fetch('/api/voice-coach/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userMessage: userInput,
+            targetLanguage: activeTargetLang,
+            nativeLanguage: nativeLanguage,
+            conversationHistory: [...messages, userMsg].slice(-8).map(m => ({
+              sender: m.sender,
+              text: m.text,
+              nativeExplanation: m.nativeExplanation
+            }))
+          })
+        });
+        if (response.ok) {
+          const aiData = await response.json();
+          if (aiData && aiData.targetLanguageText) {
+            senseiTargetText = aiData.targetLanguageText;
+            senseiRomaji = aiData.romaji || aiData.targetLanguageText;
+            senseiTurkishExplanation = aiData.nativeExplanation || aiData.targetLanguageText;
+            senseiScore = 98;
+            senseiFeedback = aiData.pronunciationFeedback || 'Harika ve çok doğal bir diyalog!';
+            if (Array.isArray(aiData.suggestedReplies) && aiData.suggestedReplies.length > 0) {
+              newReplies = aiData.suggestedReplies;
+            }
+            serverAiSuccess = true;
+          }
         }
-      } else {
-        // Fallback: Firestore Cloud Dialogue Library
-        const fallback = await getCloudDialogueResponse(
-          selectedCard,
+      } catch (e) {
+        // Fallback to local small conversational brain
+      }
+
+      // 2. Sunucu çevrimdışıysa veya anahtar yoksa Small Conversational Brain ile sıfır kesinti devam et
+      if (!serverAiSuccess) {
+        const brainResponse = await smallConversationalBrain.processTurn(
+          userInput,
           activeTargetLang,
           nativeLanguage,
-          messages.length + 1,
-          isFreeVoiceSpoken,
           [...messages, userMsg]
         );
-        senseiTargetText = fallback.targetLanguageText;
-        senseiRomaji = fallback.romaji;
-        senseiTurkishExplanation = fallback.nativeExplanation;
-        senseiScore = fallback.pronunciationScore || 98;
-        senseiFeedback = fallback.pronunciationFeedback || 'Harika akıcı bir sohbet!';
-        if (fallback.suggestedReplies && fallback.suggestedReplies.length > 0) {
-          newReplies = fallback.suggestedReplies;
+
+        if (brainResponse && brainResponse.targetLanguageText) {
+          senseiTargetText = brainResponse.targetLanguageText;
+          senseiRomaji = brainResponse.romaji || brainResponse.targetLanguageText;
+          senseiTurkishExplanation = brainResponse.nativeExplanation || brainResponse.targetLanguageText;
+          senseiScore = brainResponse.pronunciationScore || 98;
+          senseiFeedback = brainResponse.pronunciationFeedback || 'Harika ve çok doğal bir diyalog!';
+          if (Array.isArray(brainResponse.suggestedReplies) && brainResponse.suggestedReplies.length > 0) {
+            newReplies = brainResponse.suggestedReplies;
+          }
+        } else {
+          // Fallback: Firestore Cloud Dialogue Library
+          const fallback = await getCloudDialogueResponse(
+            selectedCard,
+            activeTargetLang,
+            nativeLanguage,
+            messages.length + 1,
+            isFreeVoiceSpoken,
+            [...messages, userMsg]
+          );
+          senseiTargetText = fallback.targetLanguageText;
+          senseiRomaji = fallback.romaji;
+          senseiTurkishExplanation = fallback.nativeExplanation;
+          senseiScore = fallback.pronunciationScore || 98;
+          senseiFeedback = fallback.pronunciationFeedback || 'Harika akıcı bir sohbet!';
+          if (fallback.suggestedReplies && fallback.suggestedReplies.length > 0) {
+            newReplies = fallback.suggestedReplies;
+          }
         }
       }
 
@@ -1287,11 +1328,12 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
         <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
           <button
             type="button"
+            onPointerDown={() => triggerTactilePress('light')}
             onClick={() => {
               stopAudioPlayback();
               onClose();
             }}
-            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 flex items-center justify-center text-white border border-white/15 transition-all flex-shrink-0 cursor-pointer shadow-sm"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 hover:bg-white/20 active:scale-85 active:translate-y-0.5 flex items-center justify-center text-white border border-white/15 transition-all flex-shrink-0 cursor-pointer shadow-sm select-none"
             title="Geri Dön / Sohbetten Çık"
           >
             <ArrowLeft size={18} />
@@ -1322,110 +1364,120 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
           </div>
         </div>
 
-        {/* Right Controls: WebLLM Pill, Gemma Pill, Target Language, Sound, Close Button */}
+        {/* Right Controls: Owner AI Pills (hidden from users), Target Language, Sound, Close Button */}
         <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
-          {/* Open-Source WebLLM (WebGPU / Zero API Keys) Pill */}
-          <div className="flex items-center">
-            <button
-              type="button"
-              onClick={() => {
-                if (webLLMStatus !== 'ready') {
-                  setIsWebLLMModalOpen(true);
-                  return;
-                }
-                setUseWebLLM(!useWebLLM);
-              }}
-              className={`p-1.5 sm:px-2 sm:py-1 rounded-l-xl text-xs font-bold flex items-center gap-1 transition-all shadow-sm cursor-pointer select-none ${
-                useWebLLM && webLLMStatus === 'ready'
-                  ? 'bg-amber-500/20 border border-amber-500/60 text-amber-300'
-                  : 'bg-white/5 border border-white/10 text-gray-400 hover:text-gray-200'
-              }`}
-              title={
-                webLLMStatus === 'ready'
-                  ? (useWebLLM ? 'Açık Kaynak Yerel Yapay Zeka Aktif (WebGPU)' : 'Açık Kaynak Yerel Yapay Zeka Kapalı')
-                  : 'Açık Kaynak Yerel Yapay Zekayı Başlat (Sıfır API / Ücretsiz)'
-              }
-            >
-              <Sparkles
-                size={13}
-                className={
-                  useWebLLM && webLLMStatus === 'ready'
-                    ? 'text-amber-400 animate-pulse'
-                    : 'text-gray-400'
-                }
-              />
-              <span className="hidden sm:inline text-[10px]">Açık Kaynak</span>
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${
-                  useWebLLM && webLLMStatus === 'ready'
-                    ? 'bg-amber-400 animate-ping'
-                    : webLLMStatus === 'ready'
-                    ? 'bg-emerald-400'
-                    : 'bg-amber-400/60'
-                }`}
-              />
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsWebLLMModalOpen(true)}
-              className="p-1.5 sm:px-1.5 sm:py-1 bg-white/5 hover:bg-white/15 border border-white/10 rounded-r-xl text-gray-300 hover:text-amber-300 transition-all cursor-pointer flex items-center"
-              title="Açık Kaynak Yapay Zeka Ayarları"
-            >
-              <Settings size={12} />
-            </button>
-          </div>
+          {/* Sadece Uygulama Sahibi için Model Göstergeleri */}
+          {isOwner && (
+            <>
+              {/* Açık Kaynak WebLLM On-Device Motoru (Admin) */}
+              <div className="flex items-center">
+                <button
+                  type="button"
+                  onPointerDown={() => triggerTactilePress('selection')}
+                  onClick={() => {
+                    if (webLLMStatus !== 'ready') {
+                      setIsWebLLMModalOpen(true);
+                      return;
+                    }
+                    setUseWebLLM(!useWebLLM);
+                  }}
+                  className={`p-1.5 sm:px-2 sm:py-1 rounded-l-xl text-xs font-bold flex items-center gap-1 transition-all shadow-sm cursor-pointer select-none active:scale-95 ${
+                    useWebLLM && webLLMStatus === 'ready'
+                      ? 'bg-[#00F0FF]/20 border border-[#00F0FF]/60 text-[#00F0FF]'
+                      : 'bg-white/5 border border-white/10 text-gray-400 hover:text-gray-200'
+                  }`}
+                  title={
+                    webLLMStatus === 'ready'
+                      ? (useWebLLM ? 'Açık Kaynak WebLLM Aktif' : 'Açık Kaynak WebLLM Kapalı')
+                      : 'Açık Kaynak WebLLM Başlat'
+                  }
+                >
+                  <Sparkles
+                    size={13}
+                    className={
+                      useWebLLM && webLLMStatus === 'ready'
+                        ? 'text-[#00F0FF] animate-pulse'
+                        : 'text-gray-400'
+                    }
+                  />
+                  <span className="hidden sm:inline text-[10px]">Açık Kaynak</span>
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      useWebLLM && webLLMStatus === 'ready'
+                        ? 'bg-[#00F0FF] animate-ping'
+                        : webLLMStatus === 'ready'
+                        ? 'bg-emerald-400'
+                        : 'bg-amber-400/60'
+                    }`}
+                  />
+                </button>
+                <button
+                  type="button"
+                  onPointerDown={() => triggerTactilePress('selection')}
+                  onClick={() => setIsWebLLMModalOpen(true)}
+                  className="p-1.5 sm:px-1.5 sm:py-1 bg-white/5 hover:bg-white/15 border border-white/10 rounded-r-xl text-gray-300 hover:text-[#00F0FF] transition-all cursor-pointer flex items-center active:scale-95"
+                  title="Açık Kaynak WebLLM Ayarları"
+                >
+                  <Settings size={12} />
+                </button>
+              </div>
 
-          {/* On-Device Gemma 3 1B Toggle */}
-          <div className="flex items-center">
-            <button
-              type="button"
-              onClick={() => {
-                if (!modelInfo.hasValidModel) {
-                  setIsModelManagerOpen(true);
-                  return;
-                }
-                setUseGemmaOnDevice(!useGemmaOnDevice);
-              }}
-              className={`p-1.5 sm:px-2 sm:py-1 rounded-l-xl text-xs font-bold flex items-center gap-1 transition-all shadow-sm cursor-pointer select-none ${
-                useGemmaOnDevice && modelInfo.hasValidModel
-                  ? 'bg-[#00F0FF]/20 border border-[#00F0FF]/60 text-[#00F0FF]'
-                  : 'bg-white/5 border border-white/10 text-gray-400 hover:text-gray-200'
-              }`}
-              title={
-                !modelInfo.hasValidModel
-                  ? 'Gemma 3 Modeli'
-                  : useGemmaOnDevice
-                  ? 'Gemma 3 GPU Aktif'
-                  : 'Sensei Kütüphanesi'
-              }
-            >
-              <Zap
-                size={13}
-                className={
-                  useGemmaOnDevice && modelInfo.hasValidModel
-                    ? 'text-[#00F0FF] animate-pulse'
-                    : 'text-gray-400'
-                }
-              />
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${
-                  useGemmaOnDevice && modelInfo.hasValidModel
-                    ? 'bg-[#00F0FF] animate-ping'
-                    : modelInfo.hasValidModel
-                    ? 'bg-emerald-400'
-                    : 'bg-amber-400'
-                }`}
-              />
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsModelManagerOpen(true)}
-              className="p-1.5 sm:px-1.5 sm:py-1 bg-white/5 hover:bg-white/15 border border-white/10 rounded-r-xl text-gray-300 hover:text-[#00F0FF] transition-all cursor-pointer flex items-center"
-              title="Gemma Model Ayarları"
-            >
-              <Settings size={12} />
-            </button>
-          </div>
+              {/* On-Device Gemma 3 1B GPU Engine Toggle (Admin) */}
+              <div className="flex items-center">
+                <button
+                  type="button"
+                  onPointerDown={() => triggerTactilePress('selection')}
+                  onClick={() => {
+                    if (!modelInfo.hasValidModel) {
+                      setIsModelManagerOpen(true);
+                      return;
+                    }
+                    setUseGemmaOnDevice(!useGemmaOnDevice);
+                  }}
+                  className={`p-1.5 sm:px-2 sm:py-1 rounded-l-xl text-xs font-bold flex items-center gap-1 transition-all shadow-sm cursor-pointer select-none active:scale-95 ${
+                    useGemmaOnDevice && modelInfo.hasValidModel
+                      ? 'bg-[#00F0FF]/20 border border-[#00F0FF]/60 text-[#00F0FF]'
+                      : 'bg-white/5 border border-white/10 text-gray-400 hover:text-gray-200'
+                  }`}
+                  title={
+                    !modelInfo.hasValidModel
+                      ? 'Gemma 3 Modeli'
+                      : useGemmaOnDevice
+                      ? 'Gemma 3 GPU Aktif'
+                      : 'Gemma 3 Kütüphanesi'
+                  }
+                >
+                  <Zap
+                    size={13}
+                    className={
+                      useGemmaOnDevice && modelInfo.hasValidModel
+                        ? 'text-[#00F0FF] animate-pulse'
+                        : 'text-gray-400'
+                    }
+                  />
+                  <span className="hidden sm:inline text-[10px]">Gemma 3 1B</span>
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      useGemmaOnDevice && modelInfo.hasValidModel
+                        ? 'bg-[#00F0FF] animate-ping'
+                        : modelInfo.hasValidModel
+                        ? 'bg-emerald-400'
+                        : 'bg-amber-400'
+                    }`}
+                  />
+                </button>
+                <button
+                  type="button"
+                  onPointerDown={() => triggerTactilePress('selection')}
+                  onClick={() => setIsModelManagerOpen(true)}
+                  className="p-1.5 sm:px-1.5 sm:py-1 bg-white/5 hover:bg-white/15 border border-white/10 rounded-r-xl text-gray-300 hover:text-[#00F0FF] transition-all cursor-pointer flex items-center active:scale-95"
+                  title="Gemma Model Ayarları"
+                >
+                  <Settings size={12} />
+                </button>
+              </div>
+            </>
+          )}
 
           {/* Locked Target Language Badge */}
           <div 
@@ -1439,6 +1491,7 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
           {/* Sound / Stop Playback Toggle */}
           <button
             type="button"
+            onPointerDown={() => triggerTactilePress('selection')}
             onClick={() => {
               if (activeAudioPlayingId) {
                 stopAudioPlayback();
@@ -1446,7 +1499,7 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
                 setAutoPlayAudio(!autoPlayAudio);
               }
             }}
-            className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center border transition-all cursor-pointer ${
+            className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center border transition-all cursor-pointer select-none active:scale-90 active:translate-y-0.5 ${
               activeAudioPlayingId
                 ? 'bg-[#00F0FF] border-[#00F0FF] text-black shadow-[0_0_12px_rgba(0,240,255,0.8)] animate-pulse'
                 : autoPlayAudio
@@ -1461,8 +1514,9 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
           {/* Clear Chat History Button */}
           <button
             type="button"
+            onPointerDown={() => triggerTactilePress('selection')}
             onClick={handleClearHistory}
-            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 flex items-center justify-center text-gray-300 hover:text-red-300 transition-all active:scale-95 cursor-pointer"
+            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 flex items-center justify-center text-gray-300 hover:text-red-300 transition-all active:scale-90 active:translate-y-0.5 cursor-pointer select-none"
             title="Sohbeti Temizle"
           >
             <Trash2 size={13} />
@@ -1471,11 +1525,12 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
           {/* Dedicated Close Button */}
           <button
             type="button"
+            onPointerDown={() => triggerTactilePress('light')}
             onClick={() => {
               stopAudioPlayback();
               onClose();
             }}
-            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/10 hover:bg-red-500/30 border border-white/20 hover:border-red-500/50 flex items-center justify-center text-white hover:text-red-200 transition-all active:scale-95 cursor-pointer"
+            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/10 hover:bg-red-500/30 border border-white/20 hover:border-red-500/50 flex items-center justify-center text-white hover:text-red-200 transition-all active:scale-90 active:translate-y-0.5 cursor-pointer select-none"
             title="Kapat"
           >
             <X size={15} />
@@ -1598,8 +1653,9 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
                   return (
                     <div
                       key={idx}
+                      onPointerDown={() => triggerTactilePress('selection')}
                       onClick={() => handleSelectPhrase(phrase)}
-                      className={`text-left p-2.5 rounded-xl transition-all relative border flex flex-col justify-between gap-1.5 group cursor-pointer flex-shrink-0 min-w-[210px] sm:min-w-[240px] max-w-[280px] active:scale-[0.98] ${
+                      className={`text-left p-2.5 rounded-xl transition-all relative border flex flex-col justify-between gap-1.5 group cursor-pointer flex-shrink-0 min-w-[210px] sm:min-w-[240px] max-w-[280px] active:scale-[0.97] active:translate-y-0.5 select-none ${
                         isSelected
                           ? 'bg-gradient-to-b from-[#24173F] to-[#180E2B] border-[#00F0FF] shadow-[0_0_15px_rgba(0,240,255,0.4)] ring-2 ring-[#00F0FF]'
                           : 'bg-[#180F2A] hover:bg-[#201439] border-white/10 hover:border-[#00F0FF]/40'
@@ -1615,11 +1671,15 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
                           {/* Dinle Button */}
                           <button
                             type="button"
+                            onPointerDown={(e) => {
+                              e.stopPropagation();
+                              triggerTactilePress('selection');
+                            }}
                             onClick={(e) => {
                               e.stopPropagation();
                               handleSelectPhrase(phrase);
                             }}
-                            className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold transition-all cursor-pointer ${
+                            className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold transition-all cursor-pointer active:scale-90 ${
                               isThisPlaying
                                 ? 'bg-[#00F0FF] text-black animate-pulse shadow-[0_0_10px_rgba(0,240,255,0.6)]'
                                 : 'bg-white/10 text-gray-300 hover:bg-white/20'
@@ -1748,7 +1808,8 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
                   {quickInputText.trim() && (
                     <button
                       type="submit"
-                      className="p-1.5 rounded-full bg-[#00F0FF] text-black hover:scale-105 active:scale-95 transition-all flex-shrink-0 cursor-pointer shadow-[0_0_8px_rgba(0,240,255,0.6)]"
+                      onPointerDown={() => triggerTactilePress('light')}
+                      className="p-1.5 rounded-full bg-[#00F0FF] text-black hover:scale-105 active:scale-85 active:translate-y-0.5 transition-all flex-shrink-0 cursor-pointer shadow-[0_0_8px_rgba(0,240,255,0.6)] select-none"
                       title="Gönder"
                     >
                       <Send size={13} className="font-bold" />
@@ -1760,8 +1821,9 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
                 <button
                   id="btn-start-voice-recording"
                   type="button"
+                  onPointerDown={() => triggerTactilePress('medium')}
                   onClick={handleStartRecording}
-                  className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex flex-col items-center justify-center transition-all select-none shadow-2xl relative flex-shrink-0 cursor-pointer bg-gradient-to-tr from-[#00F0FF] via-[#00B4D8] to-[#7928CA] text-black shadow-[0_0_25px_rgba(0,240,255,0.8)] hover:scale-105 active:scale-95 ring-2 ring-[#00F0FF]/60"
+                  className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex flex-col items-center justify-center transition-all select-none shadow-2xl relative flex-shrink-0 cursor-pointer bg-gradient-to-tr from-[#00F0FF] via-[#00B4D8] to-[#7928CA] text-black shadow-[0_0_25px_rgba(0,240,255,0.8)] hover:scale-105 active:scale-85 active:translate-y-1 ring-2 ring-[#00F0FF]/60"
                   title={
                     activeSelectedPhrase
                       ? `"${activeSelectedPhrase.target}" kelimesini söylemek veya serbest konuşmak için bas`

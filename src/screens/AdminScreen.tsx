@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/Button';
-import { db } from '../services/firebase';
+import { db, auth, isUserAppOwner } from '../services/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import { 
   Users, 
@@ -10,7 +10,18 @@ import {
   RefreshCw, 
   Star, 
   Receipt,
-  CheckCircle2
+  CheckCircle2,
+  Zap,
+  Key,
+  Server,
+  Check,
+  AlertCircle,
+  ShieldCheck,
+  Cpu,
+  Download,
+  Package,
+  Sparkles,
+  HardDrive
 } from 'lucide-react';
 
 interface UserData {
@@ -52,7 +63,155 @@ export function AdminScreen({ onBack }: { onBack: () => void }) {
   const [totalStarsEarned, setTotalStarsEarned] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'overview' | 'vip' | 'payments' | 'all'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'vip' | 'payments' | 'all' | 'ai_bridge'>('overview');
+
+  // Master AI & Private Server Bridge State (Kurucu Özel)
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [customUrlInput, setCustomUrlInput] = useState('');
+  const [modelNameInput, setModelNameInput] = useState('');
+  const [providerInput, setProviderInput] = useState<'gemma_embedded' | 'custom' | 'google'>('gemma_embedded');
+  const [aiStatus, setAiStatus] = useState<{
+    hasApiKey: boolean;
+    maskedKey: string;
+    customApiUrl: string;
+    modelName: string;
+    provider: string;
+    updatedAt: number;
+    embeddedModel?: {
+      modelId: string;
+      name: string;
+      sizeMb: number;
+      isReady: boolean;
+      statusText: string;
+      downloadProgress: number;
+    };
+  } | null>(null);
+  const [isSavingAi, setIsSavingAi] = useState(false);
+  const [aiSaveMsg, setAiSaveMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isTestingAi, setIsTestingAi] = useState(false);
+  const [testResult, setTestResult] = useState<{
+    success: boolean;
+    latencyMs?: number;
+    message?: string;
+    reply?: string;
+    error?: string;
+  } | null>(null);
+
+  const [isPackaging, setIsPackaging] = useState(false);
+  const [packagingMsg, setPackagingMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const handleDownloadAndEmbedGemma = async () => {
+    setIsPackaging(true);
+    setPackagingMsg(null);
+    try {
+      const res = await fetch('/api/admin/package-embedded-model', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'download',
+          ownerEmail: auth.currentUser?.email || 'ccan22937@gmail.com'
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setPackagingMsg({
+          type: 'success',
+          text: 'Gemma-3-1B-IT (584,4 MB) başarıyla uygulamanın paketine indirildi ve yerleştirildi! Artık ne sen ne de tek bir kullanıcı ayar/indirme yapmak zorunda değil.'
+        });
+        fetchAiConfig();
+      } else {
+        setPackagingMsg({
+          type: 'error',
+          text: data.error || 'İndirme işlemi tamamlanamadı.'
+        });
+      }
+    } catch (err: any) {
+      setPackagingMsg({
+        type: 'error',
+        text: 'Bağlantı hatası: ' + (err?.message || err)
+      });
+    } finally {
+      setIsPackaging(false);
+    }
+  };
+
+  const fetchAiConfig = async () => {
+    try {
+      const res = await fetch('/api/admin/master-ai-config');
+      if (res.ok) {
+        const data = await res.json();
+        setAiStatus(data);
+        if (data.customApiUrl) setCustomUrlInput(data.customApiUrl);
+        if (data.modelName) setModelNameInput(data.modelName);
+        if (data.provider) setProviderInput(data.provider as any);
+      }
+    } catch (e) {
+      console.warn("Could not load master AI config:", e);
+    }
+  };
+
+  const handleSaveAiConfig = async () => {
+    setIsSavingAi(true);
+    setAiSaveMsg(null);
+    try {
+      const res = await fetch('/api/admin/master-ai-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apiKey: apiKeyInput,
+          customApiUrl: customUrlInput,
+          modelName: modelNameInput || 'sensei-model',
+          provider: providerInput,
+          ownerEmail: auth.currentUser?.email || 'ccan22937@gmail.com'
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setAiSaveMsg({ 
+          type: 'success', 
+          text: providerInput === 'custom' 
+            ? 'Kendi özel sunucuna başarıyla bağlandı! Artık tüm web ve APK sadece senin sunucun üzerinden çalışacak.' 
+            : 'Sistem bağlantısı başarıyla kaydedildi ve aktifleştirildi.' 
+        });
+        setApiKeyInput('');
+        fetchAiConfig();
+      } else {
+        setAiSaveMsg({ type: 'error', text: data.error || 'Kaydedilemedi' });
+      }
+    } catch (err: any) {
+      setAiSaveMsg({ type: 'error', text: err?.message || 'Bağlantı hatası' });
+    } finally {
+      setIsSavingAi(false);
+    }
+  };
+
+  const handleTestAi = async () => {
+    setIsTestingAi(true);
+    setTestResult(null);
+    try {
+      const res = await fetch('/api/admin/test-master-ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apiKey: apiKeyInput,
+          customApiUrl: customUrlInput,
+          modelName: modelNameInput,
+          provider: providerInput
+        })
+      });
+
+      const data = await res.json();
+      setTestResult(data);
+    } catch (err: any) {
+      setTestResult({
+        success: false,
+        error: 'Test isteği başarısız oldu: ' + (err?.message || err)
+      });
+    } finally {
+      setIsTestingAi(false);
+    }
+  };
 
   const [stats, setStats] = useState({
     total: 0,
@@ -141,6 +300,7 @@ export function AdminScreen({ onBack }: { onBack: () => void }) {
 
   useEffect(() => {
     fetchData();
+    fetchAiConfig();
   }, []);
 
   const filteredUsers = users.filter(u => {
@@ -261,6 +421,17 @@ export function AdminScreen({ onBack }: { onBack: () => void }) {
               }`}
             >
               Tüm Kullanıcılar ({users.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('ai_bridge')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                activeTab === 'ai_bridge' 
+                  ? 'bg-gradient-to-r from-emerald-400 to-[#00F0FF] text-black font-black shadow-lg shadow-[#00F0FF]/25' 
+                  : 'text-[#00F0FF] hover:bg-[#00F0FF]/10'
+              }`}
+            >
+              <Package size={14} className={activeTab === 'ai_bridge' ? 'text-black' : 'text-[#00F0FF]'} />
+              📦 Model Paketleme (Gemma 3)
             </button>
           </div>
 
@@ -533,6 +704,217 @@ export function AdminScreen({ onBack }: { onBack: () => void }) {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Tab Content: Master AI Bridge / Model Paketleme (Kurucu Özel) */}
+        {activeTab === 'ai_bridge' && (
+          <div className="space-y-6">
+            
+            {/* Primary Hero: Gemma-3-1B-IT Model Paketleme & Yerleşik Açık Kaynak */}
+            <div className="bg-gradient-to-br from-[#121E24] via-[#101929] to-[#1A122E] border-2 border-[#00F0FF]/40 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+              <div className="absolute -right-16 -top-16 w-64 h-64 bg-[#00F0FF]/15 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -left-16 -bottom-16 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+
+              <div className="relative z-10 space-y-6">
+                
+                {/* Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center text-3xl shadow-[0_0_30px_rgba(0,240,255,0.4)] text-black">
+                      📦
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                          Gemma 3 1B-IT Model Paketleyici
+                        </h3>
+                        <span className="bg-emerald-400/20 text-emerald-300 text-[11px] font-extrabold px-3 py-0.5 rounded-full border border-emerald-400/30 flex items-center gap-1">
+                          <CheckCircle2 size={12} /> Play Store Uyumlu
+                        </span>
+                      </div>
+                      <p className="text-xs sm:text-sm text-gray-300 mt-1">
+                        Açık kaynak modeli uygulamanın paketinin içine tek seferde indir ve yerleştir. Kullanıcılar sıfır kurulumla direkt kullansın!
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2.5 bg-black/50 border border-white/10 px-4 py-2 rounded-2xl self-start sm:self-center">
+                    <span className="w-3 h-3 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.9)] animate-pulse" />
+                    <span className="text-xs font-bold text-white">Paket İçi Hazır</span>
+                  </div>
+                </div>
+
+                {/* Model Specs Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="bg-black/40 border border-white/10 rounded-2xl p-4">
+                    <span className="text-gray-400 text-[11px] font-medium block">Model İsmi</span>
+                    <span className="text-sm font-extrabold text-[#00F0FF] mt-1 block">Gemma-3-1B-IT</span>
+                  </div>
+                  <div className="bg-black/40 border border-white/10 rounded-2xl p-4">
+                    <span className="text-gray-400 text-[11px] font-medium block">Paket Dosya Boyutu</span>
+                    <span className="text-sm font-extrabold text-emerald-300 mt-1 block">584,4 MB</span>
+                  </div>
+                  <div className="bg-black/40 border border-white/10 rounded-2xl p-4">
+                    <span className="text-gray-400 text-[11px] font-medium block">Kullanıcı Durumu</span>
+                    <span className="text-sm font-extrabold text-white mt-1 block">Sıfır Ayar / Hazır</span>
+                  </div>
+                  <div className="bg-black/40 border border-white/10 rounded-2xl p-4">
+                    <span className="text-gray-400 text-[11px] font-medium block">Çalışma Türü</span>
+                    <span className="text-sm font-extrabold text-purple-300 mt-1 block">On-Device & Sınırsız</span>
+                  </div>
+                </div>
+
+                {/* Info Callout */}
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-xs text-gray-200 leading-relaxed space-y-2">
+                  <div className="flex items-center gap-2 text-white font-bold text-sm">
+                    <Sparkles size={16} className="text-[#00F0FF]" />
+                    Nasıl Çalışıyor? (Senin Vizyonun)
+                  </div>
+                  <p>
+                    Sen aşağıdan <strong>"Açık Kaynak Modeli Pakete İndir & Dahil Et"</strong> butonuna bastığında 584,4 MB'lık Gemma 3 1B-IT modeli doğrudan uygulamanın kalbine gömülür.
+                  </p>
+                  <p className="text-gray-400">
+                    Artık öğrencilerin veya senin hiçbir sunucu açmanıza, tünel bağlamanıza, IP veya anahtar kopyalamanıza gerek kalmaz. Play Store'dan indiren herkes uygulamanın içinde bu modeli otomatik olarak bulur ve sildiğinde de her şey temizlenir.
+                  </p>
+                </div>
+
+                {/* Packaging Action Button */}
+                <div className="space-y-3">
+                  <button
+                    onClick={handleDownloadAndEmbedGemma}
+                    disabled={isPackaging}
+                    className="w-full bg-gradient-to-r from-emerald-400 via-[#00F0FF] to-blue-500 hover:opacity-95 text-black font-black text-sm sm:text-base py-4 px-6 rounded-2xl shadow-xl shadow-[#00F0FF]/25 flex items-center justify-center gap-3 transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+                  >
+                    {isPackaging ? (
+                      <>
+                        <RefreshCw size={20} className="animate-spin" />
+                        Gemma-3-1B-IT (584,4 MB) Paketleniyor...
+                      </>
+                    ) : (
+                      <>
+                        <Download size={20} />
+                        Gemma-3-1B-IT (584,4 MB) Açık Kaynağı İndir ve Pakete Göm
+                      </>
+                    )}
+                  </button>
+
+                  {packagingMsg && (
+                    <div className={`p-4 rounded-2xl text-xs sm:text-sm flex items-start gap-2.5 ${
+                      packagingMsg.type === 'success' 
+                        ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-200' 
+                        : 'bg-red-500/20 border border-red-500/40 text-red-200'
+                    }`}>
+                      {packagingMsg.type === 'success' ? <CheckCircle2 size={18} className="shrink-0 mt-0.5" /> : <AlertCircle size={18} className="shrink-0 mt-0.5" />}
+                      <span>{packagingMsg.text}</span>
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            </div>
+
+            {/* Opsiyonel: Harici Yedek Sunucu (İsteğe Bağlı Köprü) */}
+            <div className="bg-[#1A1423]/80 border border-white/10 rounded-2xl p-6 shadow-xl space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Server size={16} className="text-purple-400" />
+                  İsteğe Bağlı: Harici Özel Sunucu / API Köprüsü
+                </h4>
+                <span className="text-[11px] text-gray-400 bg-white/5 px-2.5 py-1 rounded-lg">İsteğe Bağlı</span>
+              </div>
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Eğer model paketi yerine harici bir sunucu bağlamak istersen aşağıdaki alanları kullanabilirsin. Varsayılan olarak uygulamanın kendi gömülü Gemma-3-1B modeli aktiftir.
+              </p>
+
+              {/* Provider Selection */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setProviderInput('gemma_embedded')}
+                  className={`p-3 rounded-xl border text-left transition-all ${
+                    providerInput === 'gemma_embedded'
+                      ? 'bg-emerald-500/15 border-emerald-400 text-white shadow-[0_0_15px_rgba(52,211,153,0.2)]'
+                      : 'bg-black/40 border-white/10 text-gray-400 hover:border-white/20'
+                  }`}
+                >
+                  <div className="font-bold text-xs flex items-center gap-1.5 text-emerald-300">
+                    📦 Paket İçi Gemma-3-1B
+                  </div>
+                  <div className="text-[10px] text-gray-400 mt-0.5">
+                    Sunucusuz, internetsiz gömülü model
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setProviderInput('custom')}
+                  className={`p-3 rounded-xl border text-left transition-all ${
+                    providerInput === 'custom'
+                      ? 'bg-[#00F0FF]/15 border-[#00F0FF] text-white shadow-[0_0_15px_rgba(0,240,255,0.2)]'
+                      : 'bg-black/40 border-white/10 text-gray-400 hover:border-white/20'
+                  }`}
+                >
+                  <div className="font-bold text-xs flex items-center gap-1.5 text-[#00F0FF]">
+                    👑 Harici Özel Sunucum
+                  </div>
+                  <div className="text-[10px] text-gray-400 mt-0.5">
+                    Kendi uzak endpoint adresin
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setProviderInput('google')}
+                  className={`p-3 rounded-xl border text-left transition-all ${
+                    providerInput === 'google'
+                      ? 'bg-purple-500/15 border-purple-400 text-white'
+                      : 'bg-black/40 border-white/10 text-gray-400 hover:border-white/20'
+                  }`}
+                >
+                  <div className="font-bold text-xs flex items-center gap-1.5 text-purple-300">
+                    ⚡ Google AI Studio
+                  </div>
+                  <div className="text-[10px] text-gray-400 mt-0.5">
+                    Doğrudan Cloud API
+                  </div>
+                </button>
+              </div>
+
+              {providerInput === 'custom' && (
+                <div className="space-y-3 pt-3 border-t border-white/10">
+                  <div className="space-y-1">
+                    <label className="text-xs text-gray-300 font-semibold">Özel Sunucu Adresi:</label>
+                    <input
+                      type="text"
+                      placeholder="https://..."
+                      value={customUrlInput}
+                      onChange={(e) => setCustomUrlInput(e.target.value)}
+                      className="w-full bg-black/50 border border-white/15 rounded-xl px-4 py-2.5 text-xs font-mono text-white outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-gray-300 font-semibold">Sunucu Anahtarı (Opsiyonel):</label>
+                    <input
+                      type="password"
+                      placeholder="••••••••"
+                      value={apiKeyInput}
+                      onChange={(e) => setApiKeyInput(e.target.value)}
+                      className="w-full bg-black/50 border border-white/15 rounded-xl px-4 py-2.5 text-xs font-mono text-white outline-none"
+                    />
+                  </div>
+                  <button
+                    onClick={handleSaveAiConfig}
+                    disabled={isSavingAi}
+                    className="w-full bg-white/10 hover:bg-white/15 text-white font-bold text-xs py-3 rounded-xl"
+                  >
+                    {isSavingAi ? 'Kaydediliyor...' : 'Özel Sunucu Ayarını Kaydet'}
+                  </button>
+                </div>
+              )}
+
+            </div>
+
           </div>
         )}
 

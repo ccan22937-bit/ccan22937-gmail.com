@@ -6,5 +6,7 @@
   "firestoreDatabaseId": "ai-studio-sensei-c608a774-d4ad-49bb-bb0c-ff3a96325c00",
   "storageBucket": "company-station-ltgzl.firebasestorage.app",
   "messagingSenderId": "476796648315",
-  "measurementId": ""
+  "measurementId": "",
+  "oAuthClientId": "476796648315-cn94pi76nbhv333j9rtlfl5blto1alpo.apps.googleusercontent.com",
+  "recaptchaSiteKey": ""
 }

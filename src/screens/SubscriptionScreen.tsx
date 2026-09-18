@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Button } from '../components/ui/Button';
 import { motion, AnimatePresence } from 'motion/react';
-import { Lock, Star, Sparkles, Check, CreditCard, Key, X, ShieldCheck } from 'lucide-react';
-import { logout, auth } from '../services/firebase';
+import { Lock, Star, Sparkles, Check, CreditCard, Key, X, ShieldCheck, LogOut, UserCircle2, RefreshCw } from 'lucide-react';
+import { logout } from '../services/firebase';
 import { t } from '../data/translations';
 
 interface SubscriptionScreenProps {
@@ -10,12 +10,31 @@ interface SubscriptionScreenProps {
   onPending?: (receiptBase64?: string) => void;
   paymentStatus?: string;
   nativeLanguage?: string;
+  user?: any;
+  onSwitchAccount?: () => void;
 }
 
-export function SubscriptionScreen({ onSubscribe, onPending, paymentStatus, nativeLanguage = 'Türkçe' }: SubscriptionScreenProps) {
+export function SubscriptionScreen({ 
+  onSubscribe, 
+  onPending, 
+  paymentStatus, 
+  nativeLanguage = 'Türkçe',
+  user,
+  onSwitchAccount
+}: SubscriptionScreenProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [promoCode, setPromoCode] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleSwitchAccount = async () => {
+    if (onSwitchAccount) {
+      onSwitchAccount();
+    } else {
+      localStorage.setItem('user_logged_out', 'true');
+      await logout();
+      window.location.reload();
+    }
+  };
 
   const handleCodeSubmit = () => {
     const cleanCode = promoCode.trim().toUpperCase();
@@ -34,43 +53,82 @@ export function SubscriptionScreen({ onSubscribe, onPending, paymentStatus, nati
     }, 1200);
   };
 
+  const userEmail = user?.email || localStorage.getItem('local_user_email') || '';
+  const userDisplayName = user?.displayName || userEmail.split('@')[0] || 'Kullanıcı';
+
   return (
-    <div className="flex flex-col min-h-screen bg-[#0D0814] text-white p-6 relative overflow-hidden">
+    <div className="flex flex-col min-h-screen bg-[#0D0814] text-white p-4 sm:p-6 relative overflow-hidden">
       {/* Background gradients */}
       <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-blue-900/20 to-transparent pointer-events-none" />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-600/10 blur-[100px] rounded-full pointer-events-none" />
       
+      {/* Top Header with Active Account & Switch Account Button */}
+      <div className="w-full max-w-md mx-auto flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md mb-4 z-20 shadow-lg">
+        <div className="flex items-center gap-2.5 overflow-hidden">
+          {user?.photoURL ? (
+            <img 
+              src={user.photoURL} 
+              alt={userDisplayName} 
+              className="w-9 h-9 rounded-full border border-white/20 shrink-0 object-cover" 
+              referrerPolicy="no-referrer" 
+            />
+          ) : (
+            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-purple-600 to-blue-500 flex items-center justify-center text-xs font-black text-white shrink-0 shadow-[0_0_10px_rgba(0,240,255,0.3)]">
+              {(userDisplayName[0] || 'U').toUpperCase()}
+            </div>
+          )}
+          <div className="truncate text-left">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] uppercase font-black text-gray-400 tracking-wider">Aktif Hesap</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            </div>
+            <div className="text-xs font-bold text-white truncate max-w-[160px] sm:max-w-[200px]" title={userEmail}>
+              {userEmail || userDisplayName}
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={handleSwitchAccount}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#00F0FF]/15 hover:bg-[#00F0FF]/25 border border-[#00F0FF]/40 text-xs font-black text-[#00F0FF] transition-all active:scale-95 cursor-pointer shadow-[0_0_15px_rgba(0,240,255,0.2)] shrink-0"
+          title="Farklı bir hesapla giriş yapın"
+        >
+          <RefreshCw size={13} className="stroke-[2.5]" />
+          <span>Hesap Değiştir</span>
+        </button>
+      </div>
+
       <div className="flex-1 flex flex-col items-center justify-center max-w-md mx-auto w-full relative z-10">
         
         <motion.div 
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: "spring", bounce: 0.5 }}
-          className="w-24 h-24 bg-gradient-to-tr from-yellow-400 to-yellow-600 rounded-3xl flex items-center justify-center mb-8 shadow-[0_0_40px_rgba(234,179,8,0.3)]"
+          className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-tr from-yellow-400 to-yellow-600 rounded-3xl flex items-center justify-center mb-6 shadow-[0_0_40px_rgba(234,179,8,0.3)]"
         >
-          <Sparkles size={48} className="text-white" />
+          <Sparkles size={42} className="text-white" />
         </motion.div>
         
-        <h1 className="text-3xl font-bold text-center mb-4">{t(nativeLanguage, "sub_title")}</h1>
-        <p className="text-gray-400 text-center mb-6 text-sm leading-relaxed">
+        <h1 className="text-2xl sm:text-3xl font-bold text-center mb-3">{t(nativeLanguage, "sub_title")}</h1>
+        <p className="text-gray-400 text-center mb-6 text-xs sm:text-sm leading-relaxed">
           Uygulamayı kullanmaya devam etmek ve 365 günlük dil haritası ile yapay zeka sesli koçuna sınırsız erişmek için üyeliğinizi başlatın.
         </p>
         
         {paymentStatus === 'pending' || paymentStatus === 'pending_approval' ? (
-          <div className="w-full bg-yellow-500/20 border border-yellow-500/50 rounded-2xl p-6 mb-8 text-center backdrop-blur-sm shadow-[0_0_30px_rgba(234,179,8,0.2)]">
+          <div className="w-full bg-yellow-500/20 border border-yellow-500/50 rounded-2xl p-6 mb-6 text-center backdrop-blur-sm shadow-[0_0_30px_rgba(234,179,8,0.2)]">
             <h3 className="text-xl font-bold text-yellow-500 mb-2">Ödemeniz Onaylanıyor ⏳</h3>
             <p className="text-sm text-gray-300">
               İşleminiz güvende. Üyeliğiniz kısa süre içerisinde otomatik olarak aktifleştirilecektir.
             </p>
           </div>
         ) : (
-          <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 mb-8 backdrop-blur-sm">
-            <h2 className="text-xl font-bold text-yellow-500 mb-4 flex items-center gap-2">
+          <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 sm:p-6 mb-6 backdrop-blur-sm shadow-xl">
+            <h2 className="text-lg sm:text-xl font-bold text-yellow-500 mb-4 flex items-center gap-2">
               <Star size={20} />
               Premium Üyelik (Aylık)
             </h2>
             
-            <ul className="space-y-4 mb-8">
+            <ul className="space-y-3.5 mb-6 text-xs sm:text-sm">
               <li className="flex items-center gap-3 text-gray-300">
                 <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center text-green-500 shrink-0">
                   <Check size={14} />
@@ -91,10 +149,10 @@ export function SubscriptionScreen({ onSubscribe, onPending, paymentStatus, nati
               </li>
             </ul>
             
-            <div className="pt-4 border-t border-white/10 flex flex-col gap-2 text-center">
-              <div className="text-sm text-gray-400">{t(nativeLanguage, "sub_monthly")}</div>
-              <div className="text-4xl font-bold text-white mb-2">{t(nativeLanguage, "sub_price")}</div>
-              <p className="text-xs text-yellow-400 flex items-center justify-center gap-1">
+            <div className="pt-4 border-t border-white/10 flex flex-col gap-1.5 text-center">
+              <div className="text-xs sm:text-sm text-gray-400">{t(nativeLanguage, "sub_monthly")}</div>
+              <div className="text-3xl sm:text-4xl font-black text-white mb-1">{t(nativeLanguage, "sub_price")}</div>
+              <p className="text-[11px] text-yellow-400 flex items-center justify-center gap-1">
                 <ShieldCheck size={14} /> Güvenli ödeme altyapısı ile anında aktivasyon.
               </p>
             </div>
@@ -104,7 +162,7 @@ export function SubscriptionScreen({ onSubscribe, onPending, paymentStatus, nati
         <Button 
           variant="primary" 
           size="lg" 
-          className={`w-full h-14 text-lg font-bold border-none text-white ${
+          className={`w-full h-13 text-base sm:text-lg font-bold border-none text-white ${
             paymentStatus === 'pending' || paymentStatus === 'pending_approval'
               ? 'bg-gray-600 cursor-not-allowed opacity-50'
               : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-[0_0_20px_rgba(59,130,246,0.4)]'
@@ -119,6 +177,21 @@ export function SubscriptionScreen({ onSubscribe, onPending, paymentStatus, nati
           <Lock size={20} className="mr-2 inline" />
           {paymentStatus === 'pending' || paymentStatus === 'pending_approval' ? 'Onay Bekleniyor...' : 'Hemen Başla'}
         </Button>
+
+        {/* Secondary Card: Switch Account / Farklı Hesapla Giriş Yap */}
+        <div className="w-full mt-4 p-4 rounded-2xl bg-white/[0.04] border border-white/10 flex flex-col items-center gap-2.5 text-center shadow-lg">
+          <span className="text-xs text-gray-400">
+            Farklı veya VIP/ücretli bir Google hesabınız mı var?
+          </span>
+          <button
+            type="button"
+            onClick={handleSwitchAccount}
+            className="w-full py-3 px-4 bg-white/10 hover:bg-white/20 border border-white/15 rounded-xl text-xs sm:text-sm font-extrabold text-white flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer shadow-sm hover:border-[#00F0FF]/40"
+          >
+            <LogOut size={16} className="text-[#00F0FF]" />
+            <span>Farklı Google Hesabıyla Giriş Yap (Hesap Değiştir)</span>
+          </button>
+        </div>
       </div>
 
       <AnimatePresence>

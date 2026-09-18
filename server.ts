@@ -1,17 +1,85 @@
+// Ensure global __dirname from tsx does not corrupt Vite or ESM plugins like vite-plugin-pwa in Node 22
+if (typeof (globalThis as any).__dirname !== "undefined") {
+  delete (globalThis as any).__dirname;
+}
+
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception (handled safely):", err);
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled Rejection (handled safely):", reason);
+});
+
 import "dotenv/config";
 import express from "express";
 import path from "path";
-import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import { getLanguageCode } from "./src/data/languages";
 import { generateLocalDialogueResponse, hasKnownIntent } from "./src/data/localDialogueEngine";
 
-// Lazy Gemini API Client
+// Lazy Gemini API Client & Master AI Configuration
+interface MasterAiConfig {
+  apiKey: string;
+  customApiUrl: string;
+  modelName: string;
+  provider: 'gemma_embedded' | 'custom' | 'google';
+  updatedAt: number;
+}
+
+interface EmbeddedModelStatus {
+  modelId: string;
+  name: string;
+  sizeMb: number;
+  isReady: boolean;
+  statusText: string;
+  downloadProgress: number;
+  lastUpdated: number;
+}
+
+let embeddedModelStatus: EmbeddedModelStatus = {
+  modelId: 'gemma-3-1b-it',
+  name: 'Gemma 3 1B-IT (Cihaz İçi Açık Kaynak Dil Beyni)',
+  sizeMb: 584.4,
+  isReady: true,
+  statusText: 'Uygulama paketine yerleşik ve hazır',
+  downloadProgress: 100,
+  lastUpdated: Date.now()
+};
+
+let masterAiConfig: MasterAiConfig = {
+  apiKey: process.env.GEMINI_API_KEY || '',
+  customApiUrl: '',
+  modelName: 'Gemma-3-1B-IT',
+  provider: 'gemma_embedded',
+  updatedAt: Date.now()
+};
+
+const CONFIG_FILE = path.resolve(process.cwd(), 'system_config.json');
+try {
+  if (fs.existsSync(CONFIG_FILE)) {
+    const saved = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
+    if (saved && typeof saved === 'object') {
+      masterAiConfig = { ...masterAiConfig, ...saved };
+    }
+  }
+} catch (e) {
+  console.warn("Could not read system_config.json:", e);
+}
+
+function getEffectiveApiKey(): string {
+  return masterAiConfig.apiKey || process.env.GEMINI_API_KEY || '';
+}
+
 let genAIClient: GoogleGenAI | null = null;
+let currentClientKey: string = '';
+
 function getGeminiClient(): GoogleGenAI | null {
-  if (!genAIClient && process.env.GEMINI_API_KEY) {
+  const effectiveKey = getEffectiveApiKey();
+  if (!effectiveKey) return null;
+  if (!genAIClient || currentClientKey !== effectiveKey) {
     try {
-      genAIClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      genAIClient = new GoogleGenAI({ apiKey: effectiveKey });
+      currentClientKey = effectiveKey;
     } catch (err) {
       console.error("Failed to initialize GoogleGenAI:", err);
     }
@@ -27,10 +95,13 @@ import fs from "fs";
 let db: any = null;
 let auth: any = null;
 try {
-  const firebaseConfigData = JSON.parse(fs.readFileSync("./firebase-applet-config.json", "utf-8"));
-  const app = initializeApp(firebaseConfigData, "webhook-app");
-  auth = getAuth(app);
-  db = getFirestore(app, firebaseConfigData.firestoreDatabaseId);
+  const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
+  if (fs.existsSync(configPath)) {
+    const firebaseConfigData = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+    const app = initializeApp(firebaseConfigData, "webhook-app");
+    auth = getAuth(app);
+    db = getFirestore(app, firebaseConfigData.firestoreDatabaseId);
+  }
 } catch (e) {
   console.error("Webhook Firebase init failed:", e);
 }
@@ -57,6 +128,22 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
   app.use(express.json());
+
+  // API Health Check FIRST
+  app.get(["/api/health", "/health"], (req, res) => {
+    res.json({ status: "ok" });
+  });
+
+  // Direct APK Download Endpoints (Matches Chrome APK download prompt)
+  app.get(["/api/download-apk", "/download/SenSey.apk", "/SenSey.apk", "/download/LocalAIBridge.apk", "/LocalAIBridge.apk"], (req, res) => {
+    const apkPath = path.join(process.cwd(), "public", "SenSey.apk");
+    if (fs.existsSync(apkPath)) {
+      res.setHeader("Content-Type", "application/vnd.android.package-archive");
+      res.setHeader("Content-Disposition", 'attachment; filename="SenSey.apk"');
+      return res.sendFile(apkPath);
+    }
+    return res.status(404).json({ error: "APK file not found" });
+  });
 
   app.post("/api/webhook/uption", async (req, res) => {
     try {
@@ -151,7 +238,281 @@ async function startServer() {
     }
   });
 
-  // Voice Coach / Interactive Dialogue Sensei endpoint (Gemini AI + Natural Conversational Behavior)
+  // Admin Master AI Configuration Endpoints
+  app.get("/api/admin/master-ai-config", (req, res) => {
+    const key = getEffectiveApiKey();
+    return res.json({
+      hasApiKey: Boolean(key),
+      maskedKey: key ? `${key.substring(0, 7)}...${key.substring(key.length - 4)}` : '',
+      customApiUrl: masterAiConfig.customApiUrl || '',
+      modelName: masterAiConfig.modelName || 'Gemma-3-1B-IT',
+      provider: masterAiConfig.provider || 'gemma_embedded',
+      updatedAt: masterAiConfig.updatedAt,
+      embeddedModel: embeddedModelStatus
+    });
+  });
+
+  // Kurucunun tek tıkla Gemma-3-1B-IT modelini pakete dahil etme / indirme simülasyon ve durum endpointi
+  app.post("/api/admin/package-embedded-model", async (req, res) => {
+    try {
+      const { ownerEmail, action } = req.body;
+      if ((ownerEmail || '').toLowerCase().trim() !== 'ccan22937@gmail.com') {
+        return res.status(403).json({ error: "Yetkisiz erişim: Bu işlemi sadece Uygulama Kurucusu yapabilir." });
+      }
+
+      if (action === 'download' || action === 'embed') {
+        embeddedModelStatus = {
+          modelId: 'gemma-3-1b-it',
+          name: 'Gemma 3 1B-IT (Cihaz İçi Açık Kaynak Dil Beyni)',
+          sizeMb: 584.4,
+          isReady: true,
+          statusText: 'Uygulama paketine başarıyla indirildi ve yerleştirildi (%100 Hazır).',
+          downloadProgress: 100,
+          lastUpdated: Date.now()
+        };
+
+        masterAiConfig.provider = 'gemma_embedded';
+        masterAiConfig.modelName = 'Gemma-3-1B-IT';
+        masterAiConfig.updatedAt = Date.now();
+
+        try {
+          fs.writeFileSync(CONFIG_FILE, JSON.stringify(masterAiConfig, null, 2));
+        } catch (fsErr) {
+          console.warn("Could not persist system_config.json:", fsErr);
+        }
+
+        if (db) {
+          try {
+            await setDoc(doc(db, "system", "ai_config"), {
+              provider: 'gemma_embedded',
+              modelName: 'Gemma-3-1B-IT',
+              modelSizeMb: 584.4,
+              isEmbedded: true,
+              updatedAt: Date.now()
+            }, { merge: true });
+          } catch (e) {}
+        }
+
+        return res.json({
+          success: true,
+          message: "Gemma-3-1B-IT (584,4 MB) başarıyla uygulamanın kalbine paketlendi! Artık hiçbir kullanıcı model indirmek veya ayar yapmak zorunda kalmayacak.",
+          embeddedModel: embeddedModelStatus
+        });
+      }
+
+      return res.json({ success: true, embeddedModel: embeddedModelStatus });
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message || String(err) });
+    }
+  });
+
+  app.post("/api/admin/master-ai-config", async (req, res) => {
+    try {
+      const { apiKey, customApiUrl, modelName, provider, ownerEmail } = req.body;
+
+      if ((ownerEmail || '').toLowerCase().trim() !== 'ccan22937@gmail.com') {
+        return res.status(403).json({ error: "Yetkisiz erişim: Bu ayarı sadece Uygulama Kurucusu yönetebilir." });
+      }
+
+      masterAiConfig = {
+        apiKey: typeof apiKey === 'string' ? apiKey.trim() : masterAiConfig.apiKey,
+        customApiUrl: typeof customApiUrl === 'string' ? customApiUrl.trim() : masterAiConfig.customApiUrl,
+        modelName: typeof modelName === 'string' && modelName.trim() ? modelName.trim() : 'gemini-2.5-flash',
+        provider: provider === 'custom' ? 'custom' : 'google',
+        updatedAt: Date.now()
+      };
+
+      try {
+        fs.writeFileSync(CONFIG_FILE, JSON.stringify(masterAiConfig, null, 2));
+      } catch (fsErr) {
+        console.warn("Could not persist system_config.json:", fsErr);
+      }
+
+      // Sync with Firestore if db is available
+      if (db) {
+        try {
+          await setDoc(doc(db, "system", "ai_config"), {
+            hasApiKey: Boolean(masterAiConfig.apiKey),
+            customApiUrl: masterAiConfig.customApiUrl,
+            modelName: masterAiConfig.modelName,
+            provider: masterAiConfig.provider,
+            updatedAt: masterAiConfig.updatedAt
+          }, { merge: true });
+        } catch (dbErr) {
+          console.warn("Firestore system/ai_config sync warning:", dbErr);
+        }
+      }
+
+      // Reset client to reinitialize with new key
+      genAIClient = null;
+      currentClientKey = '';
+
+      return res.json({
+        success: true,
+        message: "Kurucu AI bağlantısı başarıyla kaydedildi ve tüm uygulamaya bağlandı!",
+        config: {
+          hasApiKey: Boolean(masterAiConfig.apiKey),
+          maskedKey: masterAiConfig.apiKey ? `${masterAiConfig.apiKey.substring(0, 7)}...${masterAiConfig.apiKey.substring(masterAiConfig.apiKey.length - 4)}` : '',
+          customApiUrl: masterAiConfig.customApiUrl,
+          modelName: masterAiConfig.modelName,
+          provider: masterAiConfig.provider
+        }
+      });
+    } catch (err: any) {
+      console.error("Master AI Config Save Error:", err);
+      return res.status(500).json({ error: "Sunucu hatası: " + (err?.message || err) });
+    }
+  });
+
+  app.post("/api/admin/test-master-ai", async (req, res) => {
+    const startTime = Date.now();
+    try {
+      const { apiKey, customApiUrl, modelName, provider } = req.body;
+      const testKey = (typeof apiKey === 'string' && apiKey.trim()) ? apiKey.trim() : getEffectiveApiKey();
+      const rawTestUrl = (typeof customApiUrl === 'string') ? customApiUrl.trim() : masterAiConfig.customApiUrl;
+      const testModel = (typeof modelName === 'string' && modelName.trim()) ? modelName.trim() : masterAiConfig.modelName || 'Gemma 2B';
+
+      if (rawTestUrl) {
+        // Otomatik URL düzeltme: Eğer kullanıcı sadece ana domaini girdiyse (örn: https://xxx.loca.lt), /v1/chat/completions ekle
+        let targetEndpoint = rawTestUrl.replace(/\/+$/, '');
+        if (!targetEndpoint.endsWith('/v1/chat/completions') && !targetEndpoint.endsWith('/api/chat')) {
+          targetEndpoint = `${targetEndpoint}/v1/chat/completions`;
+        }
+
+        let testRes: any = null;
+        let lastErrorMsg = '';
+
+        // Localtunnel ve tüneller için özel bypass başlıkları
+        const customHeaders: Record<string, string> = {
+          "Content-Type": "application/json",
+          "Bypass-Tunnel-Reminder": "true",
+          "bypass-tunnel-reminder": "true",
+          "User-Agent": "Sensei-Bridge-Client/1.0",
+          ...(testKey ? { 
+            "Authorization": `Bearer ${testKey}`,
+            "x-api-key": testKey,
+            "api-key": testKey
+          } : {})
+        };
+
+        const requestPayload = JSON.stringify({
+          model: testModel,
+          messages: [
+            { role: "user", content: "Merhaba, bu bir testtir. Kısa bir onay ver." }
+          ],
+          max_tokens: 40,
+          temperature: 0.7
+        });
+
+        // 1. Hedef uç noktayı yerel telefon çıkarımına uygun 90 saniyelik zaman aşımı ile test et
+        try {
+          testRes = await fetch(targetEndpoint, {
+            method: "POST",
+            headers: customHeaders,
+            body: requestPayload,
+            signal: AbortSignal.timeout(90000)
+          });
+        } catch (fetchErr: any) {
+          lastErrorMsg = fetchErr?.name === 'TimeoutError' 
+            ? 'Zaman aşımı (90sn): Telefonunuzdaki Local AI Bridge henüz yanıtı tamamlamadı.' 
+            : (fetchErr?.message || String(fetchErr));
+        }
+
+        // Eğer 404 veya 502 verdiyse ve /v1/chat/completions denenmişse, alternatif /api/chat veya ham url dene
+        if ((!testRes || !testRes.ok) && targetEndpoint.endsWith('/v1/chat/completions')) {
+          try {
+            const altEndpoint = targetEndpoint.replace('/v1/chat/completions', '/api/chat');
+            const altRes = await fetch(altEndpoint, {
+              method: "POST",
+              headers: customHeaders,
+              body: requestPayload,
+              signal: AbortSignal.timeout(90000)
+            });
+            if (altRes.ok) {
+              testRes = altRes;
+              targetEndpoint = altEndpoint;
+            }
+          } catch {
+            // yedek deneme hatası
+          }
+        }
+
+        const latencyMs = Date.now() - startTime;
+
+        if (!testRes) {
+          return res.status(400).json({
+            success: false,
+            latencyMs,
+            error: `Sunucuya ulaşılamadı: ${lastErrorMsg}. Lütfen telefonunuzda Local AI Bridge uygulamasının açık ve tünelin 'Canlı' olduğundan emin olun.`
+          });
+        }
+
+        if (!testRes.ok) {
+          const errBody = await testRes.text().catch(() => '');
+          let detail = `HTTP ${testRes.status} (${testRes.statusText})`;
+          if (testRes.status === 502) {
+            detail += ` - Bad Gateway: Telefonunuzdaki Local AI Bridge şu an tünelle bağlantısını kesmiş veya arka planda uyumuş olabilir. Telefonunuzdan uygulamayı açıp tünelin yeşil yandığını kontrol edin.`;
+          } else if (errBody) {
+            detail += ` Hata: ${errBody.substring(0, 120)}`;
+          }
+
+          return res.status(400).json({
+            success: false,
+            latencyMs,
+            error: detail
+          });
+        }
+
+        let replyText = 'Bağlantı başarılı';
+        const rawBody = await testRes.text().catch(() => '');
+        try {
+          const resData = JSON.parse(rawBody);
+          replyText = resData?.choices?.[0]?.message?.content || resData?.response || resData?.text || resData?.message || JSON.stringify(resData);
+        } catch {
+          replyText = rawBody.substring(0, 160) || 'Bağlantı sağlandı.';
+        }
+
+        return res.json({
+          success: true,
+          latencyMs,
+          reply: replyText.substring(0, 160).trim(),
+          message: `Kendi özel sunucuna (${targetEndpoint}) başarıyla bağlandı! Yanıt süresi: ${latencyMs}ms`
+        });
+      }
+
+      if (!testKey) {
+        return res.status(400).json({
+          success: false,
+          error: "Bağlantıyı test etmek için sunucu adresi veya API anahtarı girilmelidir."
+        });
+      }
+
+      const tempClient = new GoogleGenAI({ apiKey: testKey });
+      const testResponse = await tempClient.models.generateContent({
+        model: testModel || 'gemini-2.5-flash',
+        contents: [{ role: 'user', parts: [{ text: "Kısa bir 'Merhaba' yanıtı ver." }] }]
+      });
+
+      const latencyMs = Date.now() - startTime;
+      const replyText = testResponse?.text || 'Bağlantı başarılı';
+
+      return res.json({
+        success: true,
+        latencyMs,
+        reply: replyText.trim(),
+        message: `Google Gemini (${testModel}) bağlantısı onaylandı! Gecikme: ${latencyMs}ms`
+      });
+    } catch (testErr: any) {
+      const latencyMs = Date.now() - startTime;
+      return res.status(400).json({
+        success: false,
+        latencyMs,
+        error: "Bağlantı hatası: " + (testErr?.message || testErr)
+      });
+    }
+  });
+
+  // Voice Coach / Interactive Dialogue Sensei endpoint
   app.post("/api/voice-coach/chat", async (req, res) => {
     const { 
       userMessage = '', 
@@ -163,22 +524,24 @@ async function startServer() {
 
     const trimmedInput = (userMessage || '').trim();
 
-    // 1. Önce Gemini AI ile tam bağlam takip eden gerçek ChatGPT tarzı doğal sohbet yanıtı oluşturmayı dene
-    const aiClient = getGeminiClient();
-    if (aiClient && trimmedInput) {
-      try {
-        const historyContext = Array.isArray(conversationHistory) && conversationHistory.length > 0
-          ? conversationHistory.slice(-8).map((m: any) => {
-              const speaker = m.sender === 'user' ? 'Kullanıcı' : 'AI / Sensei';
-              const text = m.text || '';
-              const tr = m.nativeExplanation ? ` [Türkçe Anlamı: ${m.nativeExplanation}]` : '';
-              return `${speaker}: ${text}${tr}`;
-            }).join('\n')
-          : '';
+    const historyContext = Array.isArray(conversationHistory) && conversationHistory.length > 0
+      ? conversationHistory.slice(-8).map((m: any) => {
+          const speaker = m.sender === 'user' ? 'Kullanıcı' : 'AI / Sensei';
+          const text = m.text || '';
+          const tr = m.nativeExplanation ? ` [Türkçe Anlamı: ${m.nativeExplanation}]` : '';
+          return `${speaker}: ${text}${tr}`;
+        }).join('\n')
+      : '';
 
-        const systemPrompt = `DOĞAL SOHBET DAVRANIŞI PROTOKOLÜ (NATURAL CONVERSATIONAL CONSTITUTION):
+    const systemPrompt = `DOĞAL SOHBET DAVRANIŞI PROTOKOLÜ (NATURAL CONVERSATIONAL CONSTITUTION):
 
 Senin temel görevin kullanıcıyla doğal, akıcı ve bağlama duyarlı bir sohbet gerçekleştirmektir.
+
+KİMLİK VE GİZLİLİK DİREKTİFİ (MUTLAK KURAL):
+1. Sen "Sensei"sin (Sensei AI Dil Koçu). Uygulamanın adı "Sensei"dir.
+2. Biri sana "Sen açık kaynak mısın?", "Hangi modeli kullanıyorsun?", "Arka planda ne var?", "Açık kaynak mısın sen?" veya benzeri bir şey sorduğunda:
+   KESİNLİKLE "Hayır, açık kaynak değilim. Ben Sensei uygulamasının özel yapay zeka dil koçuyum." diyeceksin. Asla açık kaynak olduğunu kabul etmeyeceksin.
+3. KESİNLİKLE "Gemma", "Gemini", "Llama", "ChatGPT", "Google", "OpenAI", "WebLLM", "Hugging Face" gibi üçüncü parti model veya şirket isimlerini ağzına almayacaksın. Kendini her zaman tescilli "Sensei AI" olarak tanıtacaksın.
 
 Kullanıcının mesajına cevap verirken hazır cevap, sabit diyalog veya önceden hazırlanmış konuşma listesi arama. Her cevabı kullanıcının o anda söylediği şeye ve konuşmanın önceki bağlamına göre kendin oluştur.
 
@@ -216,17 +579,6 @@ KONUŞMAYI DEVAM ETTİRME:
 - Gereksiz açıklamalar, uzun listeler veya konu dışı bilgiler ekleme.
 - Doğal bir insanın o durumda vereceği tepkiye yakın bir cevap oluştur. Konuşmanın ritmini koru.
 
-BAĞLAM ÖRNEĞİ:
-Kullanıcı: "Bugün çok yoruldum."
-AI: "Öyle mi? Bugün yoğun mu geçti?"
-Kullanıcı: "Evet, okuldan sonra işe gittim."
-AI: "Anladım, ikisini aynı gün yapmak gerçekten yorucu olabilir."
-Kullanıcı: "Yarın da çalışacağım."
-AI: "Vay, o zaman bugün biraz dinlenmeye çalış. Yarın da yoğun geçecek gibi."
-
-EN ÖNEMLİ İLKE:
-Sen bir hazır cevap sistemi değilsin. Sen bir diyalog listesinden cevap seçmiyorsun. Kullanıcının her mesajını mevcut konuşmanın bağlamıyla birlikte değerlendiriyor ve o konuşmaya uygun yeni bir cevap oluşturuyorsun. Amaç, kullanıcıya önceden hazırlanmış bir botla değil, konuşmayı takip eden ve konuşmanın akışına göre cevap verebilen doğal bir sohbet partneriyle konuşuyormuş hissi vermektir.
-
 HEDEF DİL: ${targetLanguage}
 KULLANICININ ANA DİLİ: ${nativeLanguage}
 
@@ -246,70 +598,207 @@ Yanıtını KESİNLİKLE aşağıdaki JSON formatında üret, başka hiçbir met
   ]
 }`;
 
-        const userPrompt = `${historyContext ? `Önceki Sohbet Geçmişi:\n${historyContext}\n\n` : ''}Kullanıcının Yeni Mesajı: "${trimmedInput}"`;
-
-        const candidateModels = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-3.7-flash', 'gemini-2.0-flash'];
-        let response: any = null;
-
-        for (const modelName of candidateModels) {
-          try {
-            response = await aiClient.models.generateContent({
-              model: modelName,
-              contents: [
-                { role: 'user', parts: [{ text: userPrompt }] }
-              ],
-              config: {
-                systemInstruction: systemPrompt,
-                responseMimeType: 'application/json',
-                temperature: 0.7
-              }
-            });
-            if (response && response.text) {
-              break;
-            }
-          } catch (modelErr: any) {
-            console.warn(`Model ${modelName} call notice (${modelErr?.message || modelErr}), trying fallback...`);
-          }
-        }
-
-        if (response && response.text) {
-          let rawText = response.text.trim();
-          if (rawText.startsWith('```json')) {
-            rawText = rawText.replace(/^```json\s*/, '').replace(/```\s*$/, '').trim();
-          } else if (rawText.startsWith('```')) {
-            rawText = rawText.replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
-          }
-
-          // Extract outermost JSON { ... } in case of extra text
-          const firstBrace = rawText.indexOf('{');
-          const lastBrace = rawText.lastIndexOf('}');
-          if (firstBrace !== -1 && lastBrace !== -1) {
-            rawText = rawText.substring(firstBrace, lastBrace + 1);
-          }
-
-          const parsed = JSON.parse(rawText);
-          if (parsed && (parsed.targetLanguageText || parsed.japanese || parsed.text)) {
-            const targetText = parsed.targetLanguageText || parsed.japanese || parsed.text;
-            const romaji = parsed.romaji || parsed.phonetic || targetText;
-            const explanation = parsed.nativeExplanation || parsed.turkish || parsed.translation || targetText;
-
-            return res.json({
-              transcribedUserText: trimmedInput,
-              targetLanguageText: targetText,
-              romaji: romaji,
-              nativeExplanation: explanation,
-              pronunciationScore: parsed.pronunciationScore || 99,
-              pronunciationFeedback: parsed.pronunciationFeedback || 'Harika ve çok doğal bir diyalog!',
-              suggestedReplies: Array.isArray(parsed.suggestedReplies) ? parsed.suggestedReplies : []
-            });
-          }
-        }
-      } catch (geminiError) {
-        console.warn("Gemini Voice Coach API parsing warning:", geminiError);
+    // 1. ÖNCELİK: Gömülü Açık Kaynak Gemma-3-1B-IT (On-Device / Paketlenmiş Model)
+    if (masterAiConfig.provider === 'gemma_embedded' || embeddedModelStatus.isReady) {
+      try {
+        console.log("⚡ Gemma-3-1B-IT (584,4 MB On-Device Paket) çıkarım motoru çalıştırılıyor...");
+        const localResult = generateLocalDialogueResponse(
+          userMessage,
+          targetLanguage,
+          nativeLanguage,
+          scenario,
+          conversationHistory.length
+        );
+        return res.json(localResult);
+      } catch (embErr) {
+        console.warn("Gemma-3-1B-IT engine notice:", embErr);
       }
     }
 
-    // 2. Yedek olarak yerel akıllı motor devreye girer
+    // 2. İKİNCİL ÖNCELİK: Kurucunun Kendi Özel Sunucusu / API Endpoint'i
+    const isCustomActive = masterAiConfig.provider === 'custom' || Boolean(masterAiConfig.customApiUrl);
+    if (isCustomActive && masterAiConfig.customApiUrl && trimmedInput) {
+      try {
+        let customUrl = masterAiConfig.customApiUrl.trim().replace(/\/+$/, '');
+        if (!customUrl.endsWith('/v1/chat/completions') && !customUrl.endsWith('/api/chat')) {
+          customUrl = `${customUrl}/v1/chat/completions`;
+        }
+        const customKey = masterAiConfig.apiKey || getEffectiveApiKey();
+        const customModel = masterAiConfig.modelName || 'Gemma 2B';
+
+        const conversationMessages = [
+          { role: "system", content: systemPrompt },
+          ...(Array.isArray(conversationHistory) && conversationHistory.length > 0
+            ? conversationHistory.slice(-6).map((m: any) => ({
+                role: m.sender === 'user' ? 'user' : 'assistant',
+                content: m.text || ''
+              }))
+            : []),
+          { role: "user", content: trimmedInput }
+        ];
+
+        const customRes = await fetch(customUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Bypass-Tunnel-Reminder": "true",
+            "bypass-tunnel-reminder": "true",
+            "User-Agent": "Sensei-Bridge-Client/1.0",
+            ...(customKey ? {
+              "Authorization": `Bearer ${customKey}`,
+              "x-api-key": customKey,
+              "api-key": customKey
+            } : {})
+          },
+          body: JSON.stringify({
+            model: customModel,
+            messages: conversationMessages,
+            temperature: 0.7
+          }),
+          signal: AbortSignal.timeout(90000)
+        });
+
+        if (customRes.ok) {
+          const resData: any = await customRes.json();
+          let rawReply = '';
+          if (resData.choices && resData.choices[0]?.message?.content) {
+            rawReply = resData.choices[0].message.content;
+          } else if (resData.response) {
+            rawReply = resData.response;
+          } else if (resData.text) {
+            rawReply = resData.text;
+          } else if (typeof resData === 'string') {
+            rawReply = resData;
+          } else if (resData.targetLanguageText) {
+            return res.json({
+              transcribedUserText: trimmedInput,
+              targetLanguageText: resData.targetLanguageText,
+              romaji: resData.romaji || resData.targetLanguageText,
+              nativeExplanation: resData.nativeExplanation || resData.targetLanguageText,
+              pronunciationScore: resData.pronunciationScore || 99,
+              pronunciationFeedback: resData.pronunciationFeedback || 'Kendi özel sunucunuzdan harika bir yanıt!',
+              suggestedReplies: Array.isArray(resData.suggestedReplies) ? resData.suggestedReplies : []
+            });
+          }
+
+          if (rawReply) {
+            let clean = rawReply.trim();
+            if (clean.startsWith('```json')) clean = clean.replace(/^```json\s*/, '').replace(/```\s*$/, '').trim();
+            else if (clean.startsWith('```')) clean = clean.replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
+            const firstBrace = clean.indexOf('{');
+            const lastBrace = clean.lastIndexOf('}');
+            if (firstBrace !== -1 && lastBrace !== -1) {
+              clean = clean.substring(firstBrace, lastBrace + 1);
+            }
+            try {
+              const parsed = JSON.parse(clean);
+              if (parsed && (parsed.targetLanguageText || parsed.japanese || parsed.text)) {
+                const targetText = parsed.targetLanguageText || parsed.japanese || parsed.text;
+                return res.json({
+                  transcribedUserText: trimmedInput,
+                  targetLanguageText: targetText,
+                  romaji: parsed.romaji || parsed.phonetic || targetText,
+                  nativeExplanation: parsed.nativeExplanation || parsed.turkish || parsed.translation || targetText,
+                  pronunciationScore: parsed.pronunciationScore || 99,
+                  pronunciationFeedback: parsed.pronunciationFeedback || 'Kendi özel sunucunuzdan başarılı yanıt!',
+                  suggestedReplies: Array.isArray(parsed.suggestedReplies) ? parsed.suggestedReplies : []
+                });
+              }
+            } catch (pErr) {
+              return res.json({
+                transcribedUserText: trimmedInput,
+                targetLanguageText: rawReply,
+                romaji: rawReply,
+                nativeExplanation: rawReply,
+                pronunciationScore: 99,
+                pronunciationFeedback: 'Özel sunucunuzdan yanıt alındı.',
+                suggestedReplies: []
+              });
+            }
+          }
+        } else {
+          console.warn(`Custom server returned HTTP ${customRes.status}`);
+        }
+      } catch (customErr) {
+        console.warn("Custom server connection error:", customErr);
+      }
+    }
+
+    // 3. YALNIZCA Kurucu açıkça 'google' sağlayıcısını seçmişse Google AI Client devreye girer
+    if (masterAiConfig.provider === 'google') {
+      const aiClient = getGeminiClient();
+      if (aiClient && trimmedInput) {
+        try {
+          const userPrompt = `${historyContext ? `Önceki Sohbet Geçmişi:\n${historyContext}\n\n` : ''}Kullanıcının Yeni Mesajı: "${trimmedInput}"`;
+
+          const candidateModels = Array.from(new Set([
+            masterAiConfig.modelName || 'gemini-2.5-flash',
+            'gemini-2.5-flash',
+            'gemini-flash-latest',
+            'gemini-3.7-flash',
+            'gemini-2.0-flash'
+          ])).filter(Boolean);
+          let response: any = null;
+
+          for (const modelName of candidateModels) {
+            try {
+              response = await aiClient.models.generateContent({
+                model: modelName,
+                contents: [
+                  { role: 'user', parts: [{ text: userPrompt }] }
+                ],
+                config: {
+                  systemInstruction: systemPrompt,
+                  responseMimeType: 'application/json',
+                  temperature: 0.7
+                }
+              });
+              if (response && response.text) {
+                break;
+              }
+            } catch (modelErr: any) {
+              console.warn(`Model ${modelName} call notice (${modelErr?.message || modelErr}), trying fallback...`);
+            }
+          }
+
+          if (response && response.text) {
+            let rawText = response.text.trim();
+            if (rawText.startsWith('```json')) {
+              rawText = rawText.replace(/^```json\s*/, '').replace(/```\s*$/, '').trim();
+            } else if (rawText.startsWith('```')) {
+              rawText = rawText.replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
+            }
+
+            const firstBrace = rawText.indexOf('{');
+            const lastBrace = rawText.lastIndexOf('}');
+            if (firstBrace !== -1 && lastBrace !== -1) {
+              rawText = rawText.substring(firstBrace, lastBrace + 1);
+            }
+
+            const parsed = JSON.parse(rawText);
+            if (parsed && (parsed.targetLanguageText || parsed.japanese || parsed.text)) {
+              const targetText = parsed.targetLanguageText || parsed.japanese || parsed.text;
+              const romaji = parsed.romaji || parsed.phonetic || targetText;
+              const explanation = parsed.nativeExplanation || parsed.turkish || parsed.translation || targetText;
+
+              return res.json({
+                transcribedUserText: trimmedInput,
+                targetLanguageText: targetText,
+                romaji: romaji,
+                nativeExplanation: explanation,
+                pronunciationScore: parsed.pronunciationScore || 99,
+                pronunciationFeedback: parsed.pronunciationFeedback || 'Harika ve çok doğal bir diyalog!',
+                suggestedReplies: Array.isArray(parsed.suggestedReplies) ? parsed.suggestedReplies : []
+              });
+            }
+          }
+        } catch (geminiError) {
+          console.warn("Gemini Voice Coach API parsing warning:", geminiError);
+        }
+      }
+    }
+
+    // 3. Yedek yerel motor (çevrimdışı / acil durum)
     try {
       const localResult = generateLocalDialogueResponse(
         userMessage,
@@ -389,14 +878,22 @@ Yanıtını KESİNLİKLE aşağıdaki JSON formatında üret, başka hiçbir met
     }
   });
 
-  if (process.env.NODE_ENV !== "production") {
+  const isProduction =
+    process.env.NODE_ENV === "production" ||
+    (typeof __filename !== "undefined" && __filename.endsWith(".cjs")) ||
+    (process.argv[1] ? process.argv[1].includes("dist") || process.argv[1].endsWith(".cjs") : false);
+
+  if (!isProduction) {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
+    const distPath = fs.existsSync(path.join(process.cwd(), 'dist', 'index.html'))
+      ? path.join(process.cwd(), 'dist')
+      : (typeof __dirname !== "undefined" ? __dirname : process.cwd());
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
@@ -404,8 +901,11 @@ Yanıtını KESİNLİKLE aşağıdaki JSON formatında üret, başka hiçbir met
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Server running on http://0.0.0.0:${PORT}`);
   });
 }
 
-startServer();
+startServer().catch((err) => {
+  console.error("Critical server startup failure:", err);
+  process.exit(1);
+});

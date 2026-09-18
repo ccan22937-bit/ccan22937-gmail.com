@@ -1,12 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { MainScreen } from './screens/MainScreen';
-import { PreLessonScreen } from './screens/PreLessonScreen';
-import { WarmupGameScreen } from './screens/WarmupGameScreen';
-import { LessonScreen } from './screens/LessonScreen';
-import { SummaryScreen } from './screens/SummaryScreen';
-import { LanguageSetupScreen } from './screens/LanguageSetupScreen';
-import { SubscriptionScreen } from './screens/SubscriptionScreen';
-import { AdminScreen } from './screens/AdminScreen';
 import { fetchWordData } from './services/geminiService';
 import { Drill, DrillType, WordData } from './types';
 import { auth, signInWithGoogle, logout, db, isUserAppOwner, initGoogleAuth, checkRedirectAuth } from './services/firebase';
@@ -17,6 +9,17 @@ import { InstallPrompt } from './components/InstallPrompt';
 import { Info } from 'lucide-react';
 import { t } from './data/translations';
 import { SUPPORTED_LANGUAGES } from './data/languages';
+
+// Lazy load screens to keep mobile bundles ultra-lightweight and prevent blank screen issues
+const MainScreen = React.lazy(() => import('./screens/MainScreen').then(m => ({ default: m.MainScreen })));
+const PreLessonScreen = React.lazy(() => import('./screens/PreLessonScreen').then(m => ({ default: m.PreLessonScreen })));
+const WarmupGameScreen = React.lazy(() => import('./screens/WarmupGameScreen').then(m => ({ default: m.WarmupGameScreen })));
+const LessonScreen = React.lazy(() => import('./screens/LessonScreen').then(m => ({ default: m.LessonScreen })));
+const SummaryScreen = React.lazy(() => import('./screens/SummaryScreen').then(m => ({ default: m.SummaryScreen })));
+const LanguageSetupScreen = React.lazy(() => import('./screens/LanguageSetupScreen').then(m => ({ default: m.LanguageSetupScreen })));
+const SubscriptionScreen = React.lazy(() => import('./screens/SubscriptionScreen').then(m => ({ default: m.SubscriptionScreen })));
+const AdminScreen = React.lazy(() => import('./screens/AdminScreen').then(m => ({ default: m.AdminScreen })));
+const ApkDownloadScreen = React.lazy(() => import('./screens/ApkDownloadScreen').then(m => ({ default: m.ApkDownloadScreen })));
 
 // Helper to shuffle arrays
 function shuffleArray<T>(array: T[]): T[] {
@@ -31,7 +34,7 @@ function shuffleArray<T>(array: T[]): T[] {
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [step, setStep] = useState<'language-setup' | 'map' | 'pre-lesson' | 'warmup' | 'lesson' | 'summary' | 'admin'>('language-setup');
+  const [step, setStep] = useState<'language-setup' | 'map' | 'pre-lesson' | 'warmup' | 'lesson' | 'summary' | 'admin' | 'apk-download'>('language-setup');
   const [sessionMode, setSessionMode] = useState<'learn' | 'test'>('learn');
   const [isLoading, setIsLoading] = useState(false);
   const [queue, setQueue] = useState<Drill[]>([]);
@@ -45,6 +48,21 @@ export default function App() {
   // Progress State
   const [targetLanguage, setTargetLanguage] = useState('');
   const [nativeLanguage, setNativeLanguage] = useState('');
+
+  useEffect(() => {
+    // Check if URL requests download screen
+    if (
+      window.location.pathname.includes('download') || 
+      window.location.hash.includes('download') || 
+      window.location.search.includes('download')
+    ) {
+      setStep('apk-download');
+    }
+
+    const handleOpenDownload = () => setStep('apk-download');
+    window.addEventListener('open-apk-download', handleOpenDownload);
+    return () => window.removeEventListener('open-apk-download', handleOpenDownload);
+  }, []);
 
   useEffect(() => {
     if (typeof navigator !== 'undefined' && navigator.language && !nativeLanguage) {
@@ -372,7 +390,21 @@ export default function App() {
       }
     });
 
-    return () => unsubscribe();
+    // Safety timeout to ensure loading screen never hangs on mobile/sandboxed iframes
+    const safetyTimeout = setTimeout(() => {
+      setAuthLoading((prev) => {
+        if (prev) {
+          console.warn("Auth initialization timed out, continuing with guest/cached state");
+          return false;
+        }
+        return prev;
+      });
+    }, 2000);
+
+    return () => {
+      clearTimeout(safetyTimeout);
+      unsubscribe();
+    };
   }, []);
 
   const saveLearnedWords = (wordsToAdd: string[]) => {
@@ -714,42 +746,57 @@ export default function App() {
     <div className="font-sans text-white selection:bg-[#00F0FF]/30 min-h-screen bg-[#0D0814] overflow-x-hidden w-full relative">
       <InstallPrompt />
       {authLoading ? (
-        <div className="flex items-center justify-center min-h-screen text-[#00F0FF]">Yükleniyor...</div>
-      ) : user && !isPro && isTrialExpired ? (
-        <SubscriptionScreen 
-          nativeLanguage={nativeLanguage}
-          paymentStatus={paymentStatus}
-          onPending={(receiptBase64?: string) => {
-            setPaymentStatus('pending');
-            const dataToUpdate: any = { paymentStatus: 'pending_approval' };
-            if (receiptBase64) {
-              dataToUpdate.receiptImage = receiptBase64;
-            }
-            setDoc(doc(db, "users", user.uid), dataToUpdate, { merge: true });
-          }}
-          onSubscribe={() => {
-            const now = Date.now();
-            const newPaidUntil = now + 30 * 24 * 60 * 60 * 1000; // 30 days
-            localStorage.setItem(`paidUntil_${user.uid}`, newPaidUntil.toString());
-            setDoc(doc(db, "users", user.uid), { isPro: true, paidUntil: newPaidUntil }, { merge: true }).then(() => {
-              setIsPro(true);
-              setIsTrialExpired(false);
-            });
-          }}
-        />
-      ) : !user ? (
-        <div className="flex flex-col items-center justify-between min-h-screen bg-gradient-to-b from-[#0a192f] to-[#020c1b] text-white relative overflow-hidden py-12 px-4">
-          
-          <div className="absolute inset-0 z-0">
-             <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-[100px]"></div>
-             <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/10 rounded-full blur-[100px]"></div>
+        <div className="flex flex-col items-center justify-center min-h-screen bg-[#0D0814] text-white">
+          <div className="w-16 h-16 rounded-2xl bg-[#00F0FF]/15 border border-[#00F0FF]/40 flex items-center justify-center text-3xl mb-4 shadow-[0_0_25px_rgba(0,240,255,0.25)]">
+            🥋
           </div>
-
-          <div className="absolute top-4 right-4 z-50">
+          <div className="text-xl font-black tracking-tight text-white mb-2">
+            SenSey <span className="text-[#00F0FF]">BingeLingo</span>
+          </div>
+          <div className="text-sm text-gray-400 animate-pulse">
+            Uygulama açılıyor...
+          </div>
+        </div>
+      ) : user && !isPro && isTrialExpired ? (
+        <React.Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-[#0D0814] text-[#00F0FF]">Yükleniyor...</div>}>
+          <SubscriptionScreen 
+            user={user}
+            nativeLanguage={nativeLanguage}
+            paymentStatus={paymentStatus}
+            onSwitchAccount={async () => {
+              localStorage.setItem('user_logged_out', 'true');
+              await logout();
+              setUser(null);
+              setIsPro(false);
+              setIsTrialExpired(false);
+            }}
+            onPending={(receiptBase64?: string) => {
+              setPaymentStatus('pending');
+              const dataToUpdate: any = { paymentStatus: 'pending_approval' };
+              if (receiptBase64) {
+                dataToUpdate.receiptImage = receiptBase64;
+              }
+              setDoc(doc(db, "users", user.uid), dataToUpdate, { merge: true });
+            }}
+            onSubscribe={() => {
+              const now = Date.now();
+              const newPaidUntil = now + 30 * 24 * 60 * 60 * 1000; // 30 days
+              localStorage.setItem(`paidUntil_${user.uid}`, newPaidUntil.toString());
+              setDoc(doc(db, "users", user.uid), { isPro: true, paidUntil: newPaidUntil }, { merge: true }).then(() => {
+                setIsPro(true);
+                setIsTrialExpired(false);
+              });
+            }}
+          />
+        </React.Suspense>
+      ) : !user ? (
+        <div className="flex flex-col items-center justify-between min-h-screen bg-[#0D0814] text-white relative overflow-hidden py-8 px-4">
+          
+          <div className="w-full flex justify-end px-2 z-50">
             <select
               value={nativeLanguage || 'Türkçe'}
               onChange={(e) => setNativeLanguage(e.target.value)}
-              className="bg-white/10 text-white rounded p-2 focus:outline-none focus:ring-2 focus:ring-[#00F0FF] appearance-none"
+              className="bg-white/10 text-white rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00F0FF] border border-white/15"
             >
               {SUPPORTED_LANGUAGES.map(lang => {
                 let displayName = lang.name;
@@ -768,73 +815,38 @@ export default function App() {
             </select>
           </div>
 
-          <div className="flex-1 flex flex-col items-center justify-center w-full max-w-md relative z-10 mt-10">
-            <div className="relative w-full aspect-square max-w-[320px] flex items-center justify-center">
-              
-              <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-[60px]"></div>
-              
-              <div className="relative z-10 flex flex-col items-center justify-center w-48 h-48 bg-gradient-to-br from-blue-500 to-indigo-700 rounded-full shadow-[0_0_50px_rgba(0,100,255,0.6)] border-4 border-blue-400/50">
-                <div className="absolute inset-0 rounded-full border border-white/20" style={{ backgroundImage: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.4) 0%, transparent 60%)' }}></div>
-                <div className="absolute inset-2 border border-white/10 rounded-full"></div>
-                <div className="absolute inset-y-2 left-1/4 right-1/4 border border-white/10 rounded-[100%]"></div>
-                <div className="absolute inset-x-2 top-1/4 bottom-1/4 border border-white/10 rounded-[100%]"></div>
-                
-                <div className="flex flex-col items-center mt-2 z-20">
-                  <h1 className="text-[3rem] font-black tracking-tighter leading-none text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">SEN</h1>
-                  <h1 className="text-[3rem] font-black tracking-tighter leading-none text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">SEY</h1>
+          <div className="flex-1 flex flex-col items-center justify-center w-full max-w-sm relative z-10 my-6">
+            <div className="relative w-40 h-40 flex items-center justify-center mb-6">
+              <div className="w-36 h-36 bg-gradient-to-br from-blue-600 to-indigo-800 rounded-full shadow-[0_0_40px_rgba(0,100,255,0.4)] border-4 border-blue-400/40 flex flex-col items-center justify-center">
+                <span className="text-4xl">🥋</span>
+                <div className="flex flex-col items-center mt-1">
+                  <span className="text-xl font-black tracking-wider leading-tight text-white">SENSEY</span>
                 </div>
-              </div>
-
-              <div className="absolute -bottom-8 w-64 h-24 bg-gradient-to-b from-blue-400 to-blue-800 rounded-[50%] blur-sm opacity-50"></div>
-              <div className="absolute -bottom-4 w-56 h-12 bg-white rounded-[50%] border-b-4 border-blue-900 flex items-center justify-center overflow-hidden">
-                <div className="w-full h-full flex justify-between px-4 mt-2">
-                   <div className="w-5/12 h-[1px] bg-gray-300 mt-2"></div>
-                   <div className="w-5/12 h-[1px] bg-gray-300 mt-2"></div>
-                </div>
-              </div>
-
-              <div className="absolute top-0 -left-6 bg-red-500 text-white px-3 py-1.5 md:px-4 md:py-2 rounded-2xl rounded-br-sm shadow-xl border border-red-400 transform -rotate-6 z-20 flex items-center gap-1 text-sm md:text-base">
-                <span>🇨🇳</span> <span className="font-bold">你好</span>
-              </div>
-              <div className="absolute -top-6 right-0 bg-white text-gray-800 px-3 py-1.5 md:px-4 md:py-2 rounded-2xl rounded-bl-sm shadow-xl border border-gray-200 transform rotate-12 z-20 flex items-center gap-1 text-sm md:text-base">
-                 <span className="font-bold">こんにちは</span> <span>🇯🇵</span>
-              </div>
-              <div className="absolute top-1/3 -left-12 bg-blue-500 text-white px-3 py-1.5 md:px-4 md:py-2 rounded-2xl rounded-tr-sm shadow-xl border border-blue-400 transform -rotate-12 z-20 flex items-center gap-1 text-sm md:text-base">
-                 <span>🇷🇺</span> <span className="font-bold">Привет</span>
-              </div>
-              <div className="absolute top-1/4 -right-12 bg-green-500 text-white px-3 py-1.5 md:px-4 md:py-2 rounded-2xl rounded-tl-sm shadow-xl border border-green-400 transform rotate-6 z-20 flex items-center gap-1 text-sm md:text-base">
-                 <span className="font-bold">مرحبًا</span> <span>🇸🇦</span>
-              </div>
-              <div className="absolute bottom-8 -left-8 bg-purple-500 text-white px-3 py-1.5 md:px-4 md:py-2 rounded-2xl rounded-tr-sm shadow-xl border border-purple-400 transform -rotate-6 z-20 flex items-center gap-1 text-sm md:text-base">
-                 <span className="font-bold">Hello</span> <span>🇬🇧</span>
-              </div>
-              <div className="absolute bottom-6 -right-6 bg-orange-500 text-white px-3 py-1.5 md:px-4 md:py-2 rounded-2xl rounded-tl-sm shadow-xl border border-orange-400 transform rotate-12 z-20 flex items-center gap-1 text-sm md:text-base">
-                 <span className="font-bold">Merhaba</span> <span>🇹🇷</span>
               </div>
             </div>
 
-            <div className="mt-16 text-center z-10 flex flex-col items-center">
-              <h2 className="text-xl md:text-2xl font-black tracking-widest text-white mb-1 drop-shadow-lg uppercase">{t(nativeLanguage || 'Türkçe', 'login_slogan_1')}</h2>
-              <h2 className="text-xl md:text-2xl font-black tracking-widest text-white drop-shadow-lg uppercase">{t(nativeLanguage || 'Türkçe', 'login_slogan_2')}</h2>
+            <div className="flex flex-wrap items-center justify-center gap-2 mb-6 max-w-xs">
+              <span className="bg-red-500/20 border border-red-500/40 text-red-300 px-2.5 py-1 rounded-full text-xs font-semibold">🇨🇳 你好</span>
+              <span className="bg-blue-500/20 border border-blue-500/40 text-blue-300 px-2.5 py-1 rounded-full text-xs font-semibold">🇯🇵 こんにちは</span>
+              <span className="bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 px-2.5 py-1 rounded-full text-xs font-semibold">🇬🇧 Hello</span>
+              <span className="bg-amber-500/20 border border-amber-500/40 text-amber-300 px-2.5 py-1 rounded-full text-xs font-semibold">🇹🇷 Merhaba</span>
+            </div>
+
+            <div className="text-center z-10 flex flex-col items-center mb-4">
+              <h2 className="text-lg sm:text-xl font-black tracking-wide text-white drop-shadow uppercase">{t(nativeLanguage || 'Türkçe', 'login_slogan_1')}</h2>
+              <h2 className="text-lg sm:text-xl font-black tracking-wide text-[#00F0FF] uppercase">{t(nativeLanguage || 'Türkçe', 'login_slogan_2')}</h2>
             </div>
           </div>
 
-          <div className="w-full max-w-sm mt-4 z-10 flex flex-col gap-4">
-             
-             <div className="bg-black/30 border border-white/10 rounded-xl p-4 max-h-[160px] overflow-y-auto text-xs text-gray-300 space-y-3 custom-scrollbar">
-                <p className="font-bold text-white">{t(nativeLanguage || 'Türkçe', 'login_terms_intro')}</p>
-                <ol className="list-decimal pl-4 space-y-2">
+          <div className="w-full max-w-sm z-10 flex flex-col gap-3">
+             <div className="bg-white/5 border border-white/10 rounded-2xl p-3.5 max-h-[140px] overflow-y-auto text-xs text-gray-300 space-y-2">
+                <p className="font-bold text-white text-xs">{t(nativeLanguage || 'Türkçe', 'login_terms_intro')}</p>
+                <ol className="list-decimal pl-4 space-y-1 text-[11px] text-gray-300">
                   <li><strong className="text-gray-200">{t(nativeLanguage || 'Türkçe', 'login_term_1_title')}</strong> {t(nativeLanguage || 'Türkçe', 'login_term_1_desc')}</li>
                   <li><strong className="text-gray-200">{t(nativeLanguage || 'Türkçe', 'login_term_2_title')}</strong> {t(nativeLanguage || 'Türkçe', 'login_term_2_desc')}</li>
                   <li><strong className="text-gray-200">{t(nativeLanguage || 'Türkçe', 'login_term_3_title')}</strong> {t(nativeLanguage || 'Türkçe', 'login_term_3_desc')}</li>
                   <li><strong className="text-gray-200">{t(nativeLanguage || 'Türkçe', 'login_term_4_title')}</strong> {t(nativeLanguage || 'Türkçe', 'login_term_4_desc')}</li>
                 </ol>
-                <div className="bg-blue-900/40 border border-blue-500/30 p-2 rounded mt-2">
-                  <h4 className="font-bold text-blue-300 mb-1 flex items-center gap-1">
-                    <Info size={14} /> {t(nativeLanguage || 'Türkçe', 'login_why_terms_title')}
-                  </h4>
-                  <p className="text-gray-300 leading-relaxed">{t(nativeLanguage || 'Türkçe', 'login_why_terms_desc')}</p>
-                </div>
              </div>
 
             <button 
@@ -857,9 +869,9 @@ export default function App() {
                   }
                 }
               }} 
-              className="w-full font-bold text-base sm:text-lg py-3.5 px-6 rounded-2xl flex items-center justify-center gap-3 transition-all bg-white text-gray-900 hover:bg-gray-100 hover:scale-[1.02] active:scale-95 shadow-[0_10px_30px_rgba(255,255,255,0.25)] border border-white/20 cursor-pointer"
+              className="w-full font-bold text-sm sm:text-base py-3 px-5 rounded-2xl flex items-center justify-center gap-3 transition-all bg-white text-gray-900 hover:bg-gray-100 active:scale-95 shadow-md border border-white/20 cursor-pointer"
             >
-              <svg className="w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path
                   fill="#4285F4"
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -882,7 +894,7 @@ export default function App() {
           </div>
         </div>
       ) : (
-        <>
+        <React.Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-[#0D0814] text-[#00F0FF]">Yükleniyor...</div>}>
           
           {error && step !== 'lesson' && (
             <div className="fixed top-20 left-4 right-4 bg-red-100 border-l-4 border-red-500 p-4 rounded text-red-700 z-50 shadow-md flex justify-between items-center">
@@ -892,6 +904,10 @@ export default function App() {
               </div>
               <button onClick={() => setError('')} className="p-2 ml-4 bg-red-200 hover:bg-red-300 rounded-full text-red-800 transition-colors">X</button>
             </div>
+          )}
+
+          {step === 'apk-download' && (
+            <ApkDownloadScreen onBack={() => setStep('map')} />
           )}
 
           {step === 'admin' && (
@@ -922,43 +938,11 @@ export default function App() {
               onToggleReview={toggleReviewSetting}
               onAdminClick={() => setStep('admin')}
               onOpenLanguageSelect={() => setStep('language-setup')}
-
-              onSelectDay={(day) => {
-                const isOwner = isUserAppOwner(user);
-
-                if (!isOwner) {
-                  if (hearts <= 0) {
-                    setError(t(nativeLanguage || 'Türkçe', 'msg_out_of_hearts'));
-                    return;
-                  }
-                  if (dailyAttempts >= 3) {
-                    setError(t(nativeLanguage || 'Türkçe', 'msg_daily_limit'));
-                    return;
-                  }
-                  if (!unlockedLevels.includes(day)) {
-                    setError(t(nativeLanguage || 'Türkçe', 'msg_level_locked'));
-                    return;
-                  }
-                }
-                setSelectedDay(day);
-                setStep('pre-lesson');
-              }}
-              onUnlockLevel={(level) => {
-                const cost = 12;
-                if (stars >= cost) {
-                  const newStars = stars - cost;
-                  const newUnlocked = [...unlockedLevels, level];
-                  saveProgress(currentDay, hearts, newStars, newUnlocked);
-                } else {
-                  setError(t(nativeLanguage || 'Türkçe', 'msg_not_enough_stars', { cost: cost.toString() }));
-                }
-              }}
-              onClaimChest={(day, reward) => {
-                const newStars = stars + reward;
-                const newUnlocked = Array.from(new Set([...unlockedLevels, day + 1]));
-                const newCurrentDay = Math.max(currentDay, day + 1);
-                saveProgress(newCurrentDay, hearts, newStars, newUnlocked);
-              }}
+              onStartLesson={handleStartLesson}
+              isLoading={isLoading}
+              currentDay={currentDay}
+              learnedWords={learnedWords}
+              dueWords={learnedWords.filter(w => (wordStats[w]?.nextReviewDay || 0) <= currentDay)}
               onBuyHeart={() => {
                 if (stars >= 3) {
                   saveProgress(currentDay, hearts + 1, stars - 3, unlockedLevels);
@@ -1015,7 +999,7 @@ export default function App() {
               nativeLanguage={nativeLanguage}
             />
           )}
-        </>
+        </React.Suspense>
       )}
     </div>
   );

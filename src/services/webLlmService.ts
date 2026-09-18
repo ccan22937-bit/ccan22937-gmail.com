@@ -8,13 +8,10 @@
  * - Fully open-source (Llama 3.2 1B, Qwen 2.5 0.5B/1.5B, SmolLM2).
  */
 
-import {
-  CreateMLCEngine,
-  MLCEngine,
+import type {
   InitProgressReport,
   ChatOptions,
-  hasModelInCache,
-  deleteModelAllInfoInCache
+  MLCEngine
 } from "@mlc-ai/web-llm";
 
 export type WebLLMStatus = 'unloaded' | 'downloading' | 'loading' | 'ready' | 'error';
@@ -101,6 +98,7 @@ export async function isModelCached(modelId: string): Promise<boolean> {
     return false;
   }
   try {
+    const { hasModelInCache } = await import("@mlc-ai/web-llm");
     return await hasModelInCache(modelId);
   } catch (e) {
     console.warn('[WebLLM] Cache check error:', e);
@@ -116,6 +114,7 @@ export async function deleteModelFromCache(modelId: string): Promise<boolean> {
     return false;
   }
   try {
+    const { deleteModelAllInfoInCache } = await import("@mlc-ai/web-llm");
     await deleteModelAllInfoInCache(modelId);
     return true;
   } catch (e) {
@@ -250,6 +249,7 @@ export async function initializeWebLLM(modelId: string = currentModelId): Promis
       sliding_window_size: -1,
     };
 
+    const { MLCEngine } = await import("@mlc-ai/web-llm");
     const engine = new MLCEngine({
       initProgressCallback,
     });

@@ -1,33 +1,29 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Heart, Star, Lock, X, Store, User, Type, Home, Gift, BookOpen, Trophy, Bell, Send, CheckCircle2, AlertCircle, Mic, Sparkles } from 'lucide-react';
-import { ChestModal } from '../components/ChestModal';
-import { TreasureChest } from '../components/TreasureChest';
+import { Heart, Star, Store, User, Type, Home, Trophy, BookOpen, RefreshCw, LogOut, X, Sparkles, Mic, ArrowRight } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Button } from '../components/ui/Button';
-import { AlphabetModal } from '../components/AlphabetModal';
-import { VoiceCoachModal } from '../components/VoiceCoachModal';
-import { WebLLMManagerModal } from '../components/WebLLMManagerModal';
-import { LiteRTTestScreen } from './LiteRTTestScreen';
 import { User as FirebaseUser } from 'firebase/auth';
 import { t } from '../data/translations';
 import { logout, isUserAppOwner } from '../services/firebase';
-import { LogOut } from 'lucide-react';
-import { LeaderboardScreen } from './LeaderboardScreen';
 import { AdminStats } from '../components/AdminStats';
+import { triggerTactilePress } from '../utils/haptics';
+
+// Lazy load heavy modals and secondary screens to keep mobile bundles ultra-lightweight
+const AlphabetModal = React.lazy(() => import('../components/AlphabetModal').then(m => ({ default: m.AlphabetModal })));
+const VoiceCoachModal = React.lazy(() => import('../components/VoiceCoachModal').then(m => ({ default: m.VoiceCoachModal })));
+const WebLLMManagerModal = React.lazy(() => import('../components/WebLLMManagerModal').then(m => ({ default: m.WebLLMManagerModal })));
+const LeaderboardScreen = React.lazy(() => import('./LeaderboardScreen').then(m => ({ default: m.LeaderboardScreen })));
 
 interface MainScreenProps {
-  unlockedLevels: number[];
+  unlockedLevels?: number[];
   stars: number;
   hearts: number;
-  onSelectDay: (day: number) => void;
   language: string;
   nativeLanguage?: string;
   totalCorrect?: number;
   totalAnswers?: number;
-  onUnlockLevel: (level: number) => void;
   onBuyHeart: () => void;
-  onClaimChest: (day: number, reward: number) => void;
   user?: FirebaseUser | null;
   isPro?: boolean;
   trialDaysRemaining?: number;
@@ -35,492 +31,322 @@ interface MainScreenProps {
   onOpenLanguageSelect?: () => void;
   includeReview?: boolean;
   onToggleReview?: () => void;
+  onStartLesson?: (words: string[]) => void;
+  onSelectDay?: (day: number) => void;
+  isLoading?: boolean;
+  currentDay?: number;
+  learnedWords?: string[];
+  dueWords?: string[];
 }
 
-export function MainScreen({ unlockedLevels, stars, hearts, onSelectDay, language, nativeLanguage = 'Türkçe', totalCorrect = 0, totalAnswers = 0, onUnlockLevel, onBuyHeart, onClaimChest, user, isPro, trialDaysRemaining, onAdminClick, onOpenLanguageSelect, includeReview = false, onToggleReview }: MainScreenProps) {
-  const currentDay = Math.max(...unlockedLevels, 1);
-  const currentYear = Math.floor((currentDay - 1) / 365) + 1;
-  const maxYearToRender = Math.max(2, currentYear);
-  const totalDays = maxYearToRender * 365;
-  const days = Array.from({ length: totalDays }, (_, i) => i + 1);
+export function MainScreen({ 
+  stars, 
+  hearts, 
+  language, 
+  nativeLanguage = 'Türkçe', 
+  totalCorrect = 0, 
+  totalAnswers = 0, 
+  onBuyHeart, 
+  user, 
+  isPro, 
+  trialDaysRemaining, 
+  onAdminClick, 
+  onOpenLanguageSelect, 
+  includeReview = false, 
+  onToggleReview,
+  onStartLesson,
+  onSelectDay,
+  isLoading = false,
+  currentDay = 1,
+  learnedWords = []
+}: MainScreenProps) {
   const isAdmin = isUserAppOwner(user);
 
-  const getYearStyle = (year: number) => {
-    switch(year) {
-      case 1: return { 
-        main: 'bg-[#00F0FF]', text: 'text-[#00F0FF]', border: 'border-[#00F0FF]', glow: 'rgba(0,240,255,', buttonText: 'text-black', shadowMain: 'shadow-[0_0_20px_rgba(0,240,255,0.6)]', shadowStrong: 'shadow-[0_0_30px_rgba(0,240,255,0.8)]',
-        completedBg: 'bg-[#00F0FF]/20', completedBorder: 'border-[#00F0FF]/50', unlockedBg: 'bg-[#00F0FF]/10', unlockedBorder: 'border-[#00F0FF]/30', currentBorder: 'border-[#00A0AA]'
-      };
-      case 2: return {
-        main: 'bg-[#FFB800]', text: 'text-[#FFB800]', border: 'border-[#FFB800]', glow: 'rgba(255,184,0,', buttonText: 'text-black', shadowMain: 'shadow-[0_0_20px_rgba(255,184,0,0.6)]', shadowStrong: 'shadow-[0_0_30px_rgba(255,184,0,0.8)]',
-        completedBg: 'bg-[#FFB800]/20', completedBorder: 'border-[#FFB800]/50', unlockedBg: 'bg-[#FFB800]/10', unlockedBorder: 'border-[#FFB800]/30', currentBorder: 'border-[#D19700]'
-      };
-      case 3: return {
-        main: 'bg-[#FF00FF]', text: 'text-[#FF00FF]', border: 'border-[#FF00FF]', glow: 'rgba(255,0,255,', buttonText: 'text-white', shadowMain: 'shadow-[0_0_20px_rgba(255,0,255,0.6)]', shadowStrong: 'shadow-[0_0_30px_rgba(255,0,255,0.8)]',
-        completedBg: 'bg-[#FF00FF]/20', completedBorder: 'border-[#FF00FF]/50', unlockedBg: 'bg-[#FF00FF]/10', unlockedBorder: 'border-[#FF00FF]/30', currentBorder: 'border-[#CC00CC]'
-      };
-      default: return {
-        main: 'bg-[#00F0FF]', text: 'text-[#00F0FF]', border: 'border-[#00F0FF]', glow: 'rgba(0,240,255,', buttonText: 'text-black', shadowMain: 'shadow-[0_0_20px_rgba(0,240,255,0.6)]', shadowStrong: 'shadow-[0_0_30px_rgba(0,240,255,0.8)]',
-        completedBg: 'bg-[#00F0FF]/20', completedBorder: 'border-[#00F0FF]/50', unlockedBg: 'bg-[#00F0FF]/10', unlockedBorder: 'border-[#00F0FF]/30', currentBorder: 'border-[#00A0AA]'
-      };
-    }
-  };
-  
-  const currentYearStyle = getYearStyle(currentYear);
+  // 5 input fields for word preparation, identical to Screenshot 2
+  const [inputs, setInputs] = useState<string[]>(['', '', '', '', '']);
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
-  const [selectedLockedDay, setSelectedLockedDay] = useState<number | null>(null);
-  const [selectedChestDay, setSelectedChestDay] = useState<number | null>(null);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
-  
-  const [wheelSpinning, setWheelSpinning] = useState(false);
-  const [wheelResult, setWheelResult] = useState<number | null>(null);
-  
   const [storeModalOpen, setStoreModalOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [alphabetModalOpen, setAlphabetModalOpen] = useState(false);
   const [voiceCoachOpen, setVoiceCoachOpen] = useState(false);
-  const [liteRTTestOpen, setLiteRTTestOpen] = useState(false);
   const [webLLMModalOpen, setWebLLMModalOpen] = useState(false);
 
-  const handleEnableBrowserNotifications = async () => {
-    if (!('Notification' in window)) {
-      alert("Bu tarayıcı bildirimleri desteklemiyor.");
+  const getValidInputs = () => inputs.map(i => i.trim()).filter(i => i !== '');
+  const isComplete = getValidInputs().length >= 3;
+
+  const updateInput = (index: number, value: string) => {
+    const newInputs = [...inputs];
+    newInputs[index] = value;
+    setInputs(newInputs);
+    if (errorMessage) setErrorMessage('');
+  };
+
+  const handleStart = () => {
+    const valid = getValidInputs();
+    if (valid.length < 3) {
+      setErrorMessage('Lütfen dersi başlatmak için en az 3 kelime yazın.');
       return;
     }
-    const perm = await Notification.requestPermission();
-    if (perm === 'granted') {
-      new Notification("SENSEY Dil Koçun", {
-        body: "Günlük ders hatırlatıcıların aktif edildi! 📚",
-        icon: "/favicon.ico"
-      });
-      alert('Masaüstü/Tarayıcı bildirim izni başarıyla verildi! 🔔');
+
+    triggerTactilePress('medium');
+    if (onStartLesson) {
+      onStartLesson(valid);
+    } else if (onSelectDay) {
+      onSelectDay(currentDay);
+    }
+  };
+
+  const handleFillSampleWords = () => {
+    triggerTactilePress('light');
+    if (learnedWords && learnedWords.length >= 3) {
+      const pool = [...new Set(learnedWords)];
+      const shuffled = pool.sort(() => 0.5 - Math.random()).slice(0, 5);
+      while (shuffled.length < 5) shuffled.push('');
+      setInputs(shuffled);
     } else {
-      alert('Tarayıcı bildirim izni reddedildi. İzni açmak için tarayıcı site ayarlarınızı kontrol edin.');
+      // Default common starter words
+      const defaultPool = ['Merhaba', 'Teşekkürler', 'Güneş', 'Kahve', 'Arkadaş'];
+      setInputs(defaultPool);
     }
-  };
-
-  const spinWheel = () => {
-    if (wheelSpinning) return;
-    setWheelSpinning(true);
-    const possibleRewards = [1, 2, 3, 5, 10];
-    const result = possibleRewards[Math.floor(Math.random() * possibleRewards.length)];
-    
-    setTimeout(() => {
-       setWheelResult(result);
-       setWheelSpinning(false);
-    }, 3000);
-  };
-
-  const claimChest = () => {
-    if (wheelResult !== null && selectedChestDay !== null) {
-      onClaimChest(selectedChestDay, wheelResult);
-    }
-    setSelectedChestDay(null);
-    setWheelResult(null);
-  };
-
-  const getUnlockCost = (day: number) => {
-    return 12;
+    setErrorMessage('');
   };
 
   if (leaderboardOpen) {
-    return <LeaderboardScreen onBack={() => setLeaderboardOpen(false)} currentUserId={user?.uid} />;
-  }
-
-  if (liteRTTestOpen) {
     return (
-      <LiteRTTestScreen 
-        onBack={() => setLiteRTTestOpen(false)} 
-        targetLanguage={language} 
-        nativeLanguage={nativeLanguage} 
-      />
+      <React.Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-white text-[#1cb0f6] font-bold">Yükleniyor...</div>}>
+        <LeaderboardScreen onBack={() => setLeaderboardOpen(false)} currentUserId={user?.uid} />
+      </React.Suspense>
     );
   }
 
-  // Chunk days by 7
-  const dayChunks: { year: number, sectionNumber: number, days: number[] }[] = [];
-  let currentChunk: number[] = [];
-  let currentYearTracker = 1;
-  let sectionTracker = 1;
-
-  days.forEach(day => {
-    const yearOfDay = Math.floor((day - 1) / 365) + 1;
-    if (yearOfDay > currentYearTracker) {
-      currentYearTracker = yearOfDay;
-      sectionTracker = 1;
-    }
-
-    currentChunk.push(day);
-
-    if (currentChunk.length === 7 || day % 365 === 0) {
-      dayChunks.push({
-        year: currentYearTracker,
-        sectionNumber: sectionTracker,
-        days: currentChunk
-      });
-      sectionTracker++;
-      currentChunk = [];
-    }
-  });
-
-  const currentLevel = Math.max(...unlockedLevels, 1);
-  const currentChunkIndex = dayChunks.findIndex(chunk => chunk.days.includes(currentLevel));
-  const activeSectionIndex = currentChunkIndex >= 0 ? currentChunkIndex : 0;
-
   return (
-    <div className="flex flex-col min-h-screen bg-[#0D0814] text-white font-sans pb-24 transition-colors duration-300">
-      {/* Header */}
-      <div className="sticky top-0 z-50 bg-[#0D0814]/90 backdrop-blur-md border-b border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.5)] px-4 py-3 flex items-center justify-between transition-colors duration-300">
+    <div className="flex flex-col min-h-screen bg-white text-gray-900 font-sans pb-28 transition-colors duration-300">
+      {/* Top Header */}
+      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-xs px-4 py-3 flex items-center justify-between transition-colors duration-300">
         <div className="flex items-center gap-2">
           <button 
             onClick={onOpenLanguageSelect}
             title="Dili Değiştir"
-            className="flex items-center gap-2 bg-[#1A1A24] hover:bg-[#232332] border-white/10 hover:border-[#00F0FF]/40 p-2 rounded-xl border shadow-inner transition-all cursor-pointer group active:scale-95"
+            className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 border border-gray-200 p-1.5 sm:p-2 rounded-xl transition-all cursor-pointer group active:scale-95 shadow-xs"
           >
-            <div className="w-8 h-8 bg-[#2A2A35] text-gray-300 rounded-full flex items-center justify-center font-bold text-xs transition-colors duration-300">
+            <div className="w-7 h-7 bg-white text-gray-800 rounded-full flex items-center justify-center font-bold text-xs shadow-xs">
               {(nativeLanguage || 'TR').substring(0, 2).toUpperCase()}
             </div>
-            <span className="text-gray-400 group-hover:text-[#00F0FF] font-bold mx-0.5 text-xs transition-colors">→</span>
-            <div className={`w-8 h-8 ${currentYearStyle.main} rounded-full flex items-center justify-center font-bold text-xs text-black ${currentYearStyle.shadowMain} group-hover:scale-105 transition-transform`}>
+            <span className="text-gray-400 group-hover:text-[#1cb0f6] font-bold mx-0.5 text-xs transition-colors">→</span>
+            <div className="w-7 h-7 bg-[#1cb0f6] text-white rounded-full flex items-center justify-center font-bold text-xs group-hover:scale-105 transition-transform shadow-xs">
               {(language || '??').substring(0, 2).toUpperCase()}
             </div>
           </button>
           
           {isAdmin ? (
-            <div className="ml-2 px-2.5 py-1 bg-gradient-to-r from-amber-500/30 to-yellow-500/20 border border-yellow-400/40 rounded-full flex items-center gap-1.5 shadow-[0_0_12px_rgba(255,215,0,0.35)]">
+            <div className="ml-1 sm:ml-2 px-2.5 py-1 bg-amber-50 border border-amber-300 rounded-full flex items-center gap-1.5 shadow-xs">
               <span className="text-xs">👑</span>
-              <span className="text-[10px] sm:text-xs font-black text-yellow-300 tracking-wider">KURUCU</span>
+              <span className="text-[10px] sm:text-xs font-black text-amber-700 tracking-wider">KURUCU</span>
             </div>
           ) : (
             !isPro && trialDaysRemaining !== undefined && (
-              <div className="ml-2 px-2 py-1 bg-gradient-to-r from-[#FFB800]/20 to-[#FFB800]/5 border border-[#FFB800]/30 rounded-full flex items-center">
-                <span className="text-[10px] sm:text-xs font-bold text-[#FFB800]">{t(nativeLanguage, 'trial_days_remaining', { days: trialDaysRemaining?.toString() || '0' })}</span>
+              <div className="ml-1 sm:ml-2 px-2 py-1 bg-amber-50 border border-amber-200 rounded-full flex items-center">
+                <span className="text-[10px] sm:text-xs font-bold text-amber-700">{t(nativeLanguage, 'trial_days_remaining', { days: trialDaysRemaining?.toString() || '0' })}</span>
               </div>
             )
           )}
         </div>
         
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1 text-[#FFB800] font-bold text-lg whitespace-nowrap px-3 py-1.5 rounded-full border bg-[#FFB800]/10 border-[#FFB800]/20 transition-colors duration-300">
-            <Star fill="currentColor" size={20} />
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1 text-[#FFB800] font-bold text-sm sm:text-base whitespace-nowrap px-2.5 sm:px-3 py-1 rounded-full border bg-amber-50/80 border-amber-200 shadow-xs">
+            <Star fill="currentColor" size={16} />
             <span>{stars}</span>
           </div>
-          <div className="flex items-center gap-1 text-[#FF3B30] font-bold text-lg whitespace-nowrap px-3 py-1.5 rounded-full border bg-[#FF3B30]/10 border-[#FF3B30]/20 transition-colors duration-300">
-            <Heart fill="currentColor" size={20} />
+          <div className="flex items-center gap-1 text-[#FF3B30] font-bold text-sm sm:text-base whitespace-nowrap px-2.5 sm:px-3 py-1 rounded-full border bg-red-50/80 border-red-200 shadow-xs">
+            <Heart fill="currentColor" size={16} />
             <span>{hearts}</span>
           </div>
         </div>
       </div>
 
-      {/* Voice Sensei Quick Practice Card */}
-      <div className="w-full max-w-lg mx-auto px-4 pt-3 pb-1 z-20">
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={() => setVoiceCoachOpen(true)}
-          className="w-full bg-gradient-to-r from-[#170E2B] via-[#26123D] to-[#170E2B] border border-[#00F0FF]/40 rounded-2xl p-4 flex items-center justify-between shadow-[0_0_25px_rgba(0,240,255,0.2)] hover:border-[#00F0FF] transition-all group"
-        >
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#00F0FF] to-[#7928CA] flex items-center justify-center text-black shadow-[0_0_15px_rgba(0,240,255,0.5)] group-hover:scale-105 transition-transform">
-              <Mic size={24} className="text-black" />
-            </div>
-            <div className="text-left">
-              <div className="flex items-center gap-2">
-                <span className="text-white font-black text-sm sm:text-base">🎙️ Canlı Sesli Pratik Yap</span>
-                <span className="px-2 py-0.5 bg-[#FF0080]/20 text-[#FF0080] border border-[#FF0080]/40 text-[10px] font-black rounded-full animate-pulse">
-                  YENİ
-                </span>
-              </div>
-              <p className="text-xs text-gray-400">
-                Mikrofona bas, konuş! Sensei sesli analiz etsin ve cevap versin.
-              </p>
-            </div>
-          </div>
-          <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[#00F0FF] group-hover:translate-x-1 transition-transform">
-            →
-          </div>
-        </motion.button>
+      {/* Main Content Area - Exact Word Preparation UI from Screenshot 2 */}
+      <div className="flex-1 flex flex-col p-4 sm:p-6 max-w-2xl mx-auto w-full relative">
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 w-64 h-64 rounded-full blur-[90px] pointer-events-none bg-[#1cb0f6]/10"></div>
 
-        {/* WebLLM Open-Source On-Device AI Quick Launch Card */}
-        <motion.button
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.99 }}
-          onClick={() => setWebLLMModalOpen(true)}
-          className="w-full mt-2.5 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 border border-amber-500/30 hover:border-amber-500/60 rounded-2xl p-3 flex items-center justify-between transition-all cursor-pointer group shadow-lg shadow-amber-500/5"
+        {/* Circular Book Icon & Header */}
+        <motion.div 
+          initial={{ y: 15, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="w-full flex flex-col items-center mb-6 relative z-10 pt-2 sm:pt-4"
         >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 group-hover:scale-105 transition-transform">
-              <Sparkles size={20} />
-            </div>
-            <div className="text-left">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs sm:text-sm font-bold text-neutral-200">Açık Kaynak Yerel Yapay Zeka</span>
-                <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30">
-                  Sıfır API / WebGPU
-                </span>
-              </div>
-              <p className="text-[10px] text-neutral-400">
-                Telefonunun grafik kartında çalışır. Kota, anahtar veya APK gerekmez.
-              </p>
-            </div>
+          <div className="w-20 h-20 rounded-full flex items-center justify-center mb-4 border shadow-sm bg-[#1cb0f6]/10 text-[#1cb0f6] border-[#1cb0f6]/30">
+            <BookOpen size={40} className="text-[#1cb0f6]" />
           </div>
-          <span className="text-xs text-amber-400 font-semibold px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 group-hover:bg-amber-500/25 transition-colors">
-            Yönet
-          </span>
-        </motion.button>
-      </div>
-
-      {/* Path */}
-      <div className="flex-1 flex flex-col items-center w-full relative">
-        <div className="fixed inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.03] pointer-events-none mix-blend-screen z-0"></div>
-        
-        {dayChunks.map((chunkObj, chunkIndex) => {
-          const { year, sectionNumber, days: chunk } = chunkObj;
-          const isAutoModeSection = year > 1;
-          const isReviewSection = isAutoModeSection || (sectionNumber % 2 === 0);
-          const sectionBg = isReviewSection ? 'bg-white' : 'bg-[#0D0814]';
           
-          // Section divider
-          return (
-            <div key={`section-${year}-${sectionNumber}`} className={`w-full flex flex-col items-center pt-8 pb-12 relative z-10 ${sectionBg} transition-colors duration-300`}>
-              <div className="w-full max-w-lg mx-auto px-4 flex flex-col items-center">
-                <div className={`w-full ${isReviewSection ? 'bg-[#58CC02]' : 'bg-[#1CB0F6]'} rounded-3xl p-6 mb-12 flex flex-col items-start shadow-lg border-b-[6px] ${isReviewSection ? 'border-[#46A302]' : 'border-[#1899D6]'}`}>
-                  <h3 className="text-2xl font-black mb-1 text-white uppercase tracking-wide">
-                    {year}. SEVİYE - {sectionNumber}. KISIM
-                  </h3>
-                  <p className="text-white text-lg font-bold">
-                    {isAutoModeSection ? "Hafıza Havuzu Tekrarı" : (isReviewSection ? "Hafıza Havuzu Tekrarı" : "Kelime Ekleme & Öğrenme")}
-                  </p>
-                </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 text-center tracking-tight">
+            Bugün Hangi Kelimeleri Öğrenelim?
+          </h1>
+          
+          <p className="text-center mt-2 font-medium text-sm text-gray-500 max-w-lg leading-relaxed">
+            Bu uygulama, kendi seçtiğiniz kelimeleri öğreterek çalışır. Lütfen öğrenmek istediğiniz kelimeleri {nativeLanguage || 'Türkçe'} olarak yazın. (En az 3, En fazla 5 kelime)
+          </p>
+        </motion.div>
 
-                {/* Chunk nodes */}
-                <div className="w-full flex flex-col items-center">
-                  {chunk.map((day, indexInChunk) => {
-                const isChestDay = day % 5 === 0;
-                const isTrophyDay = day % 15 === 0;
-                const isUnlocked = unlockedLevels.includes(day);
-                const isCurrent = day === Math.max(...unlockedLevels);
-                const isCompleted = isUnlocked && !isCurrent;
-                const isNextToUnlock = day === Math.max(...unlockedLevels) + 1;
-                
-                // Snake pattern calculation
-                const row = Math.floor(indexInChunk / 3);
-                const col = indexInChunk % 3;
-                
-                let xOffset = 0;
-                if (row % 2 === 0) {
-                  xOffset = (col - 1) * 60; // Left to right
-                } else {
-                  xOffset = (1 - col) * 60; // Right to left
-                }
-                
-                return (
-                  <div 
-                    key={day} 
-                    className="relative flex flex-col items-center justify-center mb-10 h-[80px]"
-                    style={{ transform: `translateX(${xOffset}px)` }}
-                  >
-                    {isCurrent && (
-                      <motion.div 
-                        initial={{ y: 10, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        transition={{ 
-                          type: "spring", 
-                          stiffness: 300, 
-                          damping: 20, 
-                          repeat: Infinity, 
-                          repeatType: "reverse", 
-                          repeatDelay: 2,
-                          duration: 0.5 
-                        }}
-                        className={`absolute -top-14 ${isReviewSection ? 'bg-[#58CC02] text-white shadow-[0_0_20px_rgba(88,204,2,0.6)]' : 'bg-[#00F0FF] text-black shadow-[0_0_20px_rgba(0,240,255,0.6)]'} font-extrabold px-4 py-2 rounded-xl text-sm whitespace-nowrap z-30 transition-colors duration-300`}
-                      >
-                        Hadi Başlayalım!
-                        <div className={`absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[8px] transition-colors duration-300 ${isReviewSection ? 'border-t-[#58CC02]' : 'border-t-[#00F0FF]'}`}></div>
-                      </motion.div>
-                    )}
-                    
-                    <button
-                      disabled={!isUnlocked && !isNextToUnlock}
-                      onClick={() => {
-                        if (isUnlocked) onSelectDay(day);
-                        else if (isNextToUnlock) setSelectedLockedDay(day);
-                      }}
-                      className={cn(
-                        "w-[76px] h-[76px] rounded-full flex flex-col items-center justify-center transition-all relative z-10",
-                        isCurrent 
-                          ? (isReviewSection ? `bg-[#58CC02] text-white shadow-[0_0_40px_rgba(88,204,2,0.6),inset_0_-8px_0_rgba(0,0,0,0.2)] scale-[1.15]` : `bg-[#00F0FF] text-black shadow-[0_0_40px_rgba(0,240,255,0.8),inset_0_-8px_0_rgba(0,0,0,0.2)] scale-[1.15]`)
-                          : isCompleted 
-                            ? (isReviewSection ? `bg-[#58CC02] text-white border-[3px] border-[#46A302] shadow-[inset_0_-6px_0_rgba(0,0,0,0.2)]` : `bg-[#1A1A24] text-white opacity-80 border-[3px] border-[#3A3A4A] shadow-[inset_0_-6px_0_rgba(0,0,0,0.4)]`)
-                            : isNextToUnlock 
-                              ? (isReviewSection ? "bg-[#E5E5E5] text-gray-400 shadow-[inset_0_-6px_0_rgba(0,0,0,0.1)] hover:scale-105" : "bg-[#2A2A35] text-gray-500 shadow-[inset_0_-6px_0_rgba(0,0,0,0.4)] hover:scale-105")
-                              : (isReviewSection ? "bg-[#F5F5F5] text-gray-300 shadow-[inset_0_-4px_0_rgba(0,0,0,0.1)]" : "bg-[#1A1A24] text-gray-700 opacity-40 shadow-[inset_0_-4px_0_rgba(0,0,0,0.4)]")
-                      )}
-                    >
-                      {/* Icons inside */}
-                      {isChestDay ? (
-                         <div className={cn(isUnlocked ? "" : "opacity-40 grayscale blur-[1px]")}>
-                           <TreasureChest size={isCurrent ? 40 : 36} />
-                         </div>
-                      ) : isTrophyDay ? (
-                         <Trophy size={isCurrent ? 36 : 32} className={isCurrent ? "text-black drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]" : isCompleted ? (isReviewSection ? "text-white" : "text-[#FFD700]") : "text-gray-500"} />
-                      ) : (
-                         !isUnlocked ? (
-                           <Lock size={20} className={isReviewSection ? "text-gray-400" : "text-gray-500"} />
-                         ) : (
-                           isCompleted && isReviewSection ? (
-                             <Star size={32} className="text-white" fill="currentColor" />
-                           ) : (
-                             <span className={`${isCurrent ? (isReviewSection ? 'text-4xl text-white' : 'text-4xl text-black') : 'text-2xl text-white'} font-black`}>{day}</span>
-                           )
-                         )
-                      )}
-                    </button>
-                    
-                    {/* Floating star cost for next to unlock */}
-                    {!isUnlocked && (
-                      <div className={`absolute -bottom-4 left-1/2 transform -translate-x-1/2 flex items-center gap-1 ${isReviewSection ? 'bg-white border-gray-200 text-gray-600 shadow-sm' : 'bg-[#1A1A24] border-white/10 text-white shadow-[0_4px_10px_rgba(0,0,0,0.5)]'} px-3 py-1 rounded-full border whitespace-nowrap z-20 transition-colors duration-300`}>
-                         <Lock size={12} className={isReviewSection ? "text-gray-400" : "text-gray-400"} />
-                         <span className="font-bold text-xs">{getUnlockCost(day)}</span>
-                         <Star size={12} className="text-[#FFB800]" fill="currentColor" />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-              </div>
-            </div>
+        {/* Section Label & Quick Fill */}
+        <div className="w-full mb-3 flex items-center justify-between px-1 relative z-10">
+          <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+            YENİ KELİMELER EKLE (İSTEĞE BAĞLI)
+          </span>
+          <button
+            type="button"
+            onClick={handleFillSampleWords}
+            className="text-xs font-bold text-[#1cb0f6] hover:text-[#1899d6] flex items-center gap-1 cursor-pointer transition-colors"
+          >
+            <Sparkles size={13} />
+            {learnedWords && learnedWords.length >= 3 ? 'Kayıtlı Kelimelerden Getir' : 'Örnek Kelimeler'}
+          </button>
+        </div>
+
+        {/* 5 Input Fields identical to Screenshot 2 */}
+        <div className="w-full space-y-3.5 mb-6 relative z-10">
+          {inputs.map((input, index) => (
+            <motion.div 
+              key={index}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+            >
+              <input 
+                type="text" 
+                placeholder={`${index + 1}. Kelime`}
+                value={input}
+                onChange={e => updateInput(index, e.target.value)}
+                className="w-full px-6 py-4 rounded-2xl focus:outline-none transition-all text-base sm:text-lg font-medium border border-gray-200 focus:border-[#1cb0f6] focus:ring-2 focus:ring-[#1cb0f6]/20 bg-white text-gray-900 placeholder-gray-400 shadow-xs"
+              />
+            </motion.div>
+          ))}
+        </div>
+
+        {errorMessage && (
+          <div className="w-full mb-4 p-3 bg-amber-50 border border-amber-300 rounded-xl text-amber-800 text-sm font-medium text-center relative z-10">
+            {errorMessage}
           </div>
-          );
-        })}
+        )}
+
+        {/* Bottom Lesson Start Button */}
+        <div className="w-full mt-auto mb-4 relative z-10">
+          <button 
+            disabled={!isComplete || isLoading}
+            onClick={handleStart}
+            className={cn(
+              "w-full font-bold text-lg py-4 sm:py-5 rounded-2xl transition-all select-none cursor-pointer flex items-center justify-center gap-2",
+              (!isComplete) || isLoading
+                ? "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200 shadow-none"
+                : "bg-[#1cb0f6] text-white hover:bg-[#1899d6] shadow-[0_4px_0_0_#1899d6] active:shadow-none active:translate-y-[4px]"
+            )}
+          >
+            {isLoading ? (
+              <span>Ders Hazırlanıyor...</span>
+            ) : (
+              <>
+                <span>Dersi Başlat</span>
+                {isComplete && <ArrowRight size={20} />}
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
-      {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-[#0D0814]/90 backdrop-blur-md border-t border-white/10 flex justify-around items-center py-4 px-4 pb-safe shadow-[0_-10px_30px_rgba(0,0,0,0.8)] z-50">
-        <button className={`p-2.5 sm:p-3 rounded-2xl flex flex-col items-center gap-1 ${currentYearStyle.text} bg-white/5`}>
-          <Home size={26} />
+      {/* Bottom Navigation Dock */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 flex justify-around items-center py-2.5 sm:py-3 px-4 pb-safe shadow-[0_-4px_25px_rgba(0,0,0,0.06)] z-50 select-none">
+        <button 
+          onPointerDown={() => triggerTactilePress('selection')}
+          className="p-2.5 sm:p-3 rounded-2xl flex flex-col items-center gap-1 text-[#1cb0f6] bg-[#1cb0f6]/10 active:scale-90 active:translate-y-1 transition-transform duration-100 cursor-pointer shadow-xs"
+          title="Ana Sayfa"
+        >
+          <Home size={24} />
         </button>
         <button 
+          onPointerDown={() => triggerTactilePress('medium')}
           onClick={() => setVoiceCoachOpen(true)} 
-          className="flex flex-col items-center gap-1 text-[#00F0FF] hover:text-white transition-all p-2.5 sm:p-3 rounded-2xl bg-[#00F0FF]/15 hover:bg-[#00F0FF]/25 border border-[#00F0FF]/40 shadow-[0_0_15px_rgba(0,240,255,0.3)] relative"
-          title="Sensei Sesli Koç"
+          className="flex flex-col items-center gap-1 text-[#0284c7] active:text-[#0369a1] transition-all p-2.5 sm:p-3 rounded-2xl bg-sky-50 active:bg-sky-100 border border-sky-200 shadow-xs relative active:scale-90 active:translate-y-1 cursor-pointer"
+          title="Canlı Konuşma & Sesli Koçluk"
         >
           <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[#FF0080] rounded-full animate-ping" />
-          <Mic size={26} />
+          <Mic size={24} />
         </button>
-        <button onClick={() => setAlphabetModalOpen(true)} className="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors p-2.5 sm:p-3 rounded-2xl hover:bg-white/5">
-          <Type size={26} />
+        <button 
+          onPointerDown={() => triggerTactilePress('selection')}
+          onClick={() => setAlphabetModalOpen(true)} 
+          className="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-800 active:text-gray-900 transition-colors p-2.5 sm:p-3 rounded-2xl hover:bg-gray-100 active:scale-90 active:translate-y-1 cursor-pointer"
+          title="Alfabe"
+        >
+          <Type size={24} />
         </button>
-        <button onClick={() => setLeaderboardOpen(true)} className="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors p-2.5 sm:p-3 rounded-2xl hover:bg-white/5">
-          <Trophy size={26} />
+        <button 
+          onPointerDown={() => triggerTactilePress('selection')}
+          onClick={() => setLeaderboardOpen(true)} 
+          className="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-800 active:text-gray-900 transition-colors p-2.5 sm:p-3 rounded-2xl hover:bg-gray-100 active:scale-90 active:translate-y-1 cursor-pointer"
+          title="Lider Tablosu"
+        >
+          <Trophy size={24} />
         </button>
-        <button onClick={() => setStoreModalOpen(true)} className="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors p-2.5 sm:p-3 rounded-2xl hover:bg-white/5">
-          <Store size={26} />
+        <button 
+          onPointerDown={() => triggerTactilePress('selection')}
+          onClick={() => setStoreModalOpen(true)} 
+          className="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-800 active:text-gray-900 transition-colors p-2.5 sm:p-3 rounded-2xl hover:bg-gray-100 active:scale-90 active:translate-y-1 cursor-pointer"
+          title="Mağaza"
+        >
+          <Store size={24} />
         </button>
-        <button onClick={() => setProfileModalOpen(true)} className="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors p-2.5 sm:p-3 rounded-2xl hover:bg-white/5">
-          <User size={26} />
+        <button 
+          onPointerDown={() => triggerTactilePress('selection')}
+          onClick={() => setProfileModalOpen(true)} 
+          className="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-800 active:text-gray-900 transition-colors p-2.5 sm:p-3 rounded-2xl hover:bg-gray-100 active:scale-90 active:translate-y-1 cursor-pointer"
+          title="Profil"
+        >
+          <User size={24} />
         </button>
       </div>
 
       {/* Modals */}
       <AnimatePresence>
-        {selectedChestDay && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-             <ChestModal 
-                day={selectedChestDay}
-                isSpinning={wheelSpinning}
-                result={wheelResult}
-                onSpin={spinWheel}
-                onClaim={claimChest}
-                onClose={() => setSelectedChestDay(null)}
-             />
-          </div>
-        )}
-
-        {selectedLockedDay && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-[#1A1A24] rounded-3xl w-full max-w-sm p-8 text-center relative shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/10"
-            >
-              <button 
-                onClick={() => setSelectedLockedDay(null)}
-                className="absolute top-4 right-4 text-gray-500 hover:text-white bg-white/5 rounded-full p-2 transition-colors"
-              >
-                <X size={20} />
-              </button>
-              
-              <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-4 text-gray-500 border border-white/10 shadow-inner mx-auto">
-                <Lock size={40} />
-              </div>
-              
-              <h2 className="text-2xl font-bold text-white mb-2">{t(nativeLanguage, 'locked_level_title') || 'Kilitli Seviye'}</h2>
-              <p className="text-gray-400 mb-6">
-                Gün {selectedLockedDay} kilidini açmak ister misin?
-              </p>
-              
-              <Button 
-                variant="primary"
-                className="w-full flex items-center justify-center gap-2 mb-3 bg-[#FFB800] hover:bg-[#FFC833] text-black border-none shadow-[0_0_20px_rgba(255,184,0,0.3)]"
-                onClick={() => {
-                  onUnlockLevel(selectedLockedDay);
-                  setSelectedLockedDay(null);
-                }}
-                disabled={stars < getUnlockCost(selectedLockedDay)}
-              >
-                <Lock size={20} />
-                {t(nativeLanguage, 'unlock_for', { cost: getUnlockCost(selectedLockedDay).toString() })}
-              </Button>
-              
-              {stars < getUnlockCost(selectedLockedDay) && (
-                <p className="text-[#FF3B30] text-sm font-bold bg-[#FF3B30]/10 px-3 py-1.5 rounded-lg border border-[#FF3B30]/20">
-                  {t(nativeLanguage, 'not_enough_stars')}
-                </p>
-              )}
-            </motion.div>
-          </div>
-        )}
-
+        {/* Store Modal */}
         {storeModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
+              initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-[#1A1A24] rounded-3xl w-full max-w-sm p-6 relative shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/10"
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl w-full max-w-sm p-6 relative shadow-2xl border border-gray-200"
             >
               <button 
                 onClick={() => setStoreModalOpen(false)}
-                className="absolute top-4 right-4 text-gray-500 hover:text-white bg-white/5 rounded-full p-2 transition-colors"
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 bg-gray-100 rounded-full p-2 transition-colors cursor-pointer"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
               
-              <div className="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
-                <Store size={28} className="text-[#00F0FF]" />
-                <h2 className="text-2xl font-bold text-white">{t(nativeLanguage, 'store')}</h2>
+              <div className="flex items-center gap-3 mb-6 border-b border-gray-100 pb-4">
+                <Store size={26} className="text-[#1cb0f6]" />
+                <h2 className="text-xl font-bold text-gray-900">{t(nativeLanguage, 'store')}</h2>
               </div>
               
               <div className="space-y-4">
-                <div className="bg-white/5 p-4 rounded-2xl flex items-center justify-between border border-white/5 hover:border-white/20 transition-colors">
+                <div className="bg-gray-50 p-4 rounded-2xl flex items-center justify-between border border-gray-100">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-[#FF3B30]/20 rounded-full flex items-center justify-center border border-[#FF3B30]/30 shadow-[0_0_15px_rgba(255,59,48,0.3)]">
-                      <Heart size={24} className="text-[#FF3B30]" fill="currentColor" />
+                    <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center text-red-500 shadow-xs">
+                      <Heart size={24} fill="currentColor" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-white text-lg">1 Can Al</h3>
-                      <p className="text-gray-400 text-sm">Hata hakkı ekle</p>
+                      <h3 className="font-bold text-gray-900 text-base">1 Can Al</h3>
+                      <p className="text-gray-500 text-xs">Hata hakkı ekle</p>
                     </div>
                   </div>
                   <Button 
                     variant="outline"
                     className={cn(
-                      "flex items-center gap-1",
+                      "flex items-center gap-1 font-bold",
                       stars >= 3 
-                        ? "border-[#FFB800] text-[#FFB800] hover:bg-[#FFB800]/10" 
-                        : "border-gray-600 text-gray-500"
+                        ? "border-amber-400 bg-amber-50 text-amber-700 hover:bg-amber-100" 
+                        : "border-gray-200 text-gray-400"
                     )}
                     onClick={() => {
                       onBuyHeart();
@@ -537,111 +363,88 @@ export function MainScreen({ unlockedLevels, stars, hearts, onSelectDay, languag
           </div>
         )}
 
+        {/* Profile Modal */}
         {profileModalOpen && (
-          <div className="fixed inset-0 z-[100] flex flex-col bg-[#0D0814] overflow-y-auto">
+          <div className="fixed inset-0 z-[100] flex flex-col bg-white overflow-y-auto">
             {/* Header */}
-            <div className="flex items-center justify-between p-6">
-              <h1 className="text-2xl font-bold text-white">Kullanıcı</h1>
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <h1 className="text-2xl font-bold text-gray-900">Profil & Hesap</h1>
               <button 
                 onClick={() => setProfileModalOpen(false)}
-                className="w-10 h-10 bg-[#1A1A24] text-gray-400 hover:text-white rounded-full flex items-center justify-center transition-colors border border-white/5"
+                className="w-10 h-10 bg-gray-100 text-gray-500 hover:text-gray-800 rounded-full flex items-center justify-center transition-colors cursor-pointer"
               >
                 <X size={20} />
               </button>
             </div>
             
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              className="flex-1 flex flex-col items-center px-6 pb-24"
+              exit={{ opacity: 0, y: 15 }}
+              className="flex-1 flex flex-col items-center px-6 pb-24 pt-6 max-w-lg mx-auto w-full"
             >
               {/* Avatar Section */}
-              <div className="relative mb-4 mt-4">
+              <div className="relative mb-4">
                 {user?.photoURL ? (
                   <img 
                     src={user.photoURL} 
                     alt={user.displayName || 'Kullanıcı'} 
-                    className="w-32 h-32 rounded-full object-cover border-4 border-[#00F0FF]/40 shadow-[0_0_40px_rgba(0,240,255,0.3)]"
+                    className="w-28 h-28 rounded-full object-cover border-4 border-[#1cb0f6]/30 shadow-md"
                     referrerPolicy="no-referrer"
                   />
                 ) : (
-                  <div className="w-32 h-32 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-full flex items-center justify-center text-6xl text-white font-bold shadow-[0_0_40px_rgba(0,122,255,0.3)]">
+                  <div className="w-28 h-28 bg-gradient-to-tr from-sky-500 to-blue-600 rounded-full flex items-center justify-center text-5xl text-white font-bold shadow-md">
                     {user?.displayName ? user.displayName.charAt(0).toUpperCase() : 'G'}
                   </div>
                 )}
-                <div className="absolute bottom-0 right-0 w-10 h-10 bg-[#00F0FF] rounded-full border-4 border-[#0D0814] flex items-center justify-center text-black">
-                  <User size={20} fill="currentColor" />
+                <div className="absolute bottom-0 right-0 w-8 h-8 bg-[#1cb0f6] rounded-full border-2 border-white flex items-center justify-center text-white shadow-xs">
+                  <User size={16} />
                 </div>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-white mb-1">{user?.displayName || 'Google Kullanıcısı'}</h2>
-              <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
-                <p className="text-[#00F0FF] text-sm sm:text-base">{user?.email || 'google_user'}</p>
+
+              <h2 className="text-2xl font-bold text-gray-900 mb-1 text-center">{user?.displayName || 'Kullanıcı'}</h2>
+              
+              <div className="flex flex-wrap items-center justify-center gap-2 mb-6">
+                <p className="text-gray-500 text-sm">{user?.email || 'kullanici'}</p>
                 {isAdmin && (
-                  <span className="px-2.5 py-0.5 bg-gradient-to-r from-amber-500/30 to-yellow-500/20 text-yellow-300 border border-yellow-400/40 rounded-full text-[11px] font-black tracking-wide shadow-[0_0_10px_rgba(255,215,0,0.3)]">
+                  <span className="px-2.5 py-0.5 bg-amber-100 text-amber-800 border border-amber-300 rounded-full text-[11px] font-black tracking-wide shadow-xs">
                     👑 UYGULAMA SAHİBİ
                   </span>
                 )}
               </div>
               
               {/* Stats Section */}
-              <div className="w-full bg-[#1A1A24] rounded-[24px] p-6 mb-6 border border-white/5">
-                <h3 className="text-gray-400 text-xs font-bold tracking-wider mb-6">İSTATİSTİKLER</h3>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-[#232332] rounded-2xl p-4 flex flex-col items-center justify-center border border-white/5">
-                    <span className="text-2xl font-bold text-white mb-1">{unlockedLevels.length}</span>
-                    <span className="text-gray-400 text-xs">Seviye</span>
+              <div className="w-full bg-gray-50 rounded-2xl p-5 mb-6 border border-gray-200">
+                <h3 className="text-gray-500 text-xs font-bold tracking-wider mb-4">İSTATİSTİKLER</h3>
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div className="bg-white rounded-xl p-3 border border-gray-200 shadow-xs">
+                    <span className="text-xl font-bold text-gray-900 block mb-0.5">{totalAnswers}</span>
+                    <span className="text-gray-500 text-xs">Cevaplanan</span>
                   </div>
-                  <div className="bg-[#232332] rounded-2xl p-4 flex flex-col items-center justify-center border border-white/5">
-                    <span className="text-2xl font-bold text-white mb-1">{totalCorrect > 0 && totalAnswers > 0 ? Math.round((totalCorrect / totalAnswers) * 100) : 100}%</span>
-                    <span className="text-gray-400 text-xs">Başarı</span>
+                  <div className="bg-white rounded-xl p-3 border border-gray-200 shadow-xs">
+                    <span className="text-xl font-bold text-gray-900 block mb-0.5">
+                      {totalCorrect > 0 && totalAnswers > 0 ? Math.round((totalCorrect / totalAnswers) * 100) : 100}%
+                    </span>
+                    <span className="text-gray-500 text-xs">Başarı</span>
                   </div>
-                  <div className="bg-[#232332] rounded-2xl p-4 flex flex-col items-center justify-center border border-white/5">
-                    <div className="bg-[#00F0FF]/20 px-3 py-1 rounded-lg mb-2">
-                      <span className="text-[#00F0FF] font-bold text-sm">{(language || 'JA').substring(0, 2).toUpperCase()}</span>
+                  <div className="bg-white rounded-xl p-3 border border-gray-200 shadow-xs">
+                    <div className="bg-[#1cb0f6]/10 px-2 py-0.5 rounded-md inline-block mb-1">
+                      <span className="text-[#1cb0f6] font-bold text-xs">{(language || 'JA').substring(0, 2).toUpperCase()}</span>
                     </div>
-                    <span className="text-gray-400 text-xs">Kurslar</span>
+                    <span className="text-gray-500 text-xs block">Hedef Dil</span>
                   </div>
                 </div>
               </div>
               
-              {/* Preferences Section */}
-              <div className="w-full bg-[#1A1A24] rounded-[24px] p-6 mb-6 border border-white/5 space-y-4">
-                <h3 className="text-gray-400 text-xs font-bold tracking-wider">TERCİHLER</h3>
-                
-                {/* LiteRT-LM On-Device GPU Test Button */}
-                <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-gradient-to-tr from-[#00F0FF]/20 to-[#7928CA]/20 rounded-xl flex items-center justify-center border border-[#00F0FF]/30">
-                      <span className="text-xl">⚡</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-white font-bold text-base">Gemma 3 1B LiteRT-LM (GPU)</span>
-                      <span className="text-gray-400 text-xs">On-Device Edge Gallery model ve donanım testi</span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setProfileModalOpen(false);
-                      setLiteRTTestOpen(true);
-                    }}
-                    className="px-3 py-1.5 rounded-xl bg-[#00F0FF]/15 border border-[#00F0FF]/40 text-[#00F0FF] text-xs font-bold hover:bg-[#00F0FF]/25 cursor-pointer active:scale-95 shadow-[0_0_10px_rgba(0,240,255,0.2)]"
-                  >
-                    Test Ekranı
-                  </button>
-                </div>
-              </div>
-
-              {/* Admin & Logout */}
+              {/* Admin Panel Link */}
               {isAdmin && onAdminClick && (
                 <div className="w-full mb-4">
                   <Button 
                     variant="primary"
-                    className="w-full mb-3 bg-gradient-to-r from-indigo-600 to-blue-600 border-none shadow-[0_0_20px_rgba(79,70,229,0.4)] rounded-[24px] py-4 font-bold text-base flex items-center justify-center gap-2"
+                    className="w-full mb-3 bg-gradient-to-r from-indigo-600 to-blue-600 border-none shadow-md rounded-2xl py-4 font-bold text-base flex items-center justify-center gap-2 cursor-pointer text-white"
                     onClick={onAdminClick}
                   >
-                    <Trophy size={20} />
+                    <Trophy size={18} />
                     Admin Paneli (Kullanıcı İstatistikleri & Yönetim)
                   </Button>
                   <AdminStats />
@@ -649,24 +452,40 @@ export function MainScreen({ unlockedLevels, stars, hearts, onSelectDay, languag
               )}
 
               <Button 
-                variant="outline" 
-                className="w-full border-red-500/30 text-red-400 hover:bg-red-500/10 flex items-center justify-center gap-2 py-4 rounded-[24px] mb-4 cursor-pointer"
+                variant="primary" 
+                className="w-full bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-800 flex items-center justify-center gap-2 py-3.5 rounded-2xl mb-3 cursor-pointer font-bold transition-all active:scale-95"
                 onClick={async () => {
                   localStorage.setItem('user_logged_out', 'true');
                   await logout();
                   window.location.reload();
                 }}
               >
-                <LogOut size={20} />
-                Google Hesabından Çıkış Yap
+                <RefreshCw size={17} className="stroke-[2.5]" />
+                Hesap Değiştir (Farklı Google Hesabı)
+              </Button>
+
+              <Button 
+                variant="outline" 
+                className="w-full border-red-200 text-red-600 hover:bg-red-50 flex items-center justify-center gap-2 py-3.5 rounded-2xl mb-4 cursor-pointer text-sm font-semibold"
+                onClick={async () => {
+                  localStorage.setItem('user_logged_out', 'true');
+                  await logout();
+                  window.location.reload();
+                }}
+              >
+                <LogOut size={17} />
+                Oturumu Kapat / Çıkış Yap
               </Button>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
-      <AlphabetModal isOpen={alphabetModalOpen} onClose={() => setAlphabetModalOpen(false)} language={language} nativeLanguage={nativeLanguage} />
-      <VoiceCoachModal isOpen={voiceCoachOpen} onClose={() => setVoiceCoachOpen(false)} targetLanguage={language} nativeLanguage={nativeLanguage} />
-      <WebLLMManagerModal isOpen={webLLMModalOpen} onClose={() => setWebLLMModalOpen(false)} targetLanguage={language} />
+
+      <React.Suspense fallback={null}>
+        {alphabetModalOpen && <AlphabetModal isOpen={alphabetModalOpen} onClose={() => setAlphabetModalOpen(false)} language={language} nativeLanguage={nativeLanguage} />}
+        {voiceCoachOpen && <VoiceCoachModal isOpen={voiceCoachOpen} onClose={() => setVoiceCoachOpen(false)} targetLanguage={language} nativeLanguage={nativeLanguage} />}
+        {webLLMModalOpen && <WebLLMManagerModal isOpen={webLLMModalOpen} onClose={() => setWebLLMModalOpen(false)} targetLanguage={language} />}
+      </React.Suspense>
     </div>
   );
 }

@@ -1,15 +1,3 @@
-import express from "express";
-import path from "path";
-import { GoogleGenAI } from "@google/genai";
-
-export function getGeminiClient(): GoogleGenAI | null {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return null;
-  }
-  return new GoogleGenAI({ apiKey });
-}
-
 // System instruction for audio speech coaching and Japanese Sensei
 export const VOICE_COACH_SYSTEM_INSTRUCTION = `Sen SENSEI'sin: Kullanıcının gerçek konuşma pratiği yapmasını sağlayan, pedagojik, samimi ve dürüst bir Japonca Ses Eğitmeni ve Dil Koçusun.
 

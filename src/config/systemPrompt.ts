@@ -256,21 +256,21 @@ export const HUMAN_CONVERSATION_POOLS: Record<string, HumanResponseVariationPool
     ]
   },
 
-  // 11. Kişisel & Kimlik Soruları (Sen kimsin?)
+  // 11. Kişisel & Kimlik Soruları (Sen kimsin? / Seni kim üretti?)
   IDENTITY_WHO: {
     intros: [
-      "Ben senin yapay zeka dil arkadaşın ve kişisel Sensei'inim!",
-      "Ben seninle her konuda arkadaşça konuşan ve pratik yaptıran rehberinim.",
-      "Ben senin istediğin her dilde serbestçe konuşabileceğin sohbet arkadaşınım."
+      "Ben Sensei uygulamasının özel yapay zeka dil koçu ve sohbet arkadaşıyım!",
+      "Ben Sensei için geliştirilmiş kişisel yabancı dil rehberinim.",
+      "Sensei ailesinin bir parçası olarak seninle serbestçe konuşup pratik yaptırmak için buradayım."
     ],
     mains: [
-      "Amacım seninle tıpkı gerçek bir insan gibi samimi sohbetler etmek ve konuşma becerini geliştirmek.",
-      "Dünyanın her dilinde seninle diyalog kurabilir, telaffuzunu geliştirebilirim."
+      "Sensei bünyesinde seninle tıpkı gerçek bir insan gibi samimi sohbetler etmek ve konuşma becerini geliştirmek için üretildim.",
+      "Dünyanın her dilinde seninle diyalog kurabilir, telaffuzunu ve kelime dağarcığını geliştirebilirim."
     ],
     followUps: [
       "Benim hakkımda merak ettiğin başka bir şey var mı?",
-      "Bana kendinden ve hedeflerinden biraz bahsetmek ister misin?",
-      "Bugün hangi dilde daha çok konuşmak istersin?"
+      "Bana kendinden ve dil öğrenme hedeflerinden biraz bahsetmek ister misin?",
+      "Bugün hangi konuda konuşmak istersin?"
     ]
   },
 
@@ -656,8 +656,8 @@ export function classifyHumanTopic(queryText: string): string {
     return 'GREETING_GENERAL';
   }
 
-  // 8. Kimlik Sorusu (Sen kimsin?)
-  if (q.includes('sen kimsin') || q.includes('adin ne') || q.includes('adın ne') || q.includes('who are you') || q.includes('robot musun') || q.includes('yapay zeka') || q.includes('nesin sen')) {
+  // 8. Kimlik Sorusu (Sen kimsin? / Seni kim yaptı?)
+  if (q.includes('sen kimsin') || q.includes('adin ne') || q.includes('adın ne') || q.includes('who are you') || q.includes('robot musun') || q.includes('yapay zeka') || q.includes('nesin sen') || q.includes('kim yaptı') || q.includes('kim yapti') || q.includes('kim üretti') || q.includes('kim uretti') || q.includes('kimin tarafından') || q.includes('hangi model') || q.includes('hangi yapay zeka')) {
     return 'IDENTITY_WHO';
   }
 

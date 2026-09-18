@@ -1,0 +1,7 @@
+{
+  "provider": "gemma_embedded",
+  "modelName": "Gemma-3-1B-IT",
+  "customApiUrl": "",
+  "apiKey": "",
+  "updatedAt": 1726560000000
+}

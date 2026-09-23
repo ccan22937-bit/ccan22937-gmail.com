@@ -68,59 +68,61 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
       id={`chat-msg-${message.id}`}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} mb-3`}
+      className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} mb-3.5`}
     >
       {/* Sender Header Info */}
-      <div className="flex items-center gap-1.5 mb-1 px-1 text-[10px] text-gray-400 font-bold">
-        <span>{isUser ? '🎙️ Senin Sesli Mesajın' : `👘 Sensei (${activeTargetLang})`}</span>
+      <div className="flex items-center gap-1.5 mb-1 px-1 text-[11px] text-gray-500 font-bold">
+        <span>{isUser ? '🎙️ Senin Sesli Mesajın' : `🐊 Sensei Timsah (${activeTargetLang})`}</span>
         {message.modelEngine === 'litert' && (
-          <span className="px-1.5 py-0.2 bg-[#00F0FF]/15 border border-[#00F0FF]/40 text-[#00F0FF] text-[8px] font-black rounded-full uppercase tracking-wider flex items-center gap-0.5">
-            ⚡ Gemma 3 1B • GPU
+          <span className="px-1.5 py-0.2 bg-emerald-100 border border-emerald-300 text-emerald-800 text-[9px] font-black rounded-full uppercase tracking-wider flex items-center gap-0.5">
+            ⚡ Gemma 3 • GPU
           </span>
         )}
         <span>•</span>
-        <span className="text-[9px] text-gray-500">{message.timestamp}</span>
+        <span className="text-[10px] text-gray-400">{message.timestamp}</span>
       </div>
 
-      {/* WhatsApp Styled Audio Message Bubble */}
+      {/* Duolingo Styled Audio Message Bubble */}
       <div
-        className={`max-w-[94%] sm:max-w-md rounded-2xl p-3 sm:p-3.5 relative shadow-xl border transition-all ${
+        className={`max-w-[94%] sm:max-w-md rounded-2xl p-3.5 sm:p-4 relative transition-all border-2 ${
           isUser
-            ? 'bg-gradient-to-br from-[#0B3D4A] to-[#06242C] text-white rounded-tr-none border-[#00F0FF]/40 shadow-[0_0_20px_rgba(0,240,255,0.12)]'
+            ? 'bg-[#58cc02] text-white border-b-4 border-[#46a302] rounded-tr-none shadow-md'
             : message.isStreaming
-            ? 'bg-[#1D1230] text-white rounded-tl-none border-[#00F0FF]/50 shadow-[0_0_20px_rgba(0,240,255,0.2)]'
-            : 'bg-[#181026] text-white rounded-tl-none border-white/10 shadow-lg'
+            ? 'bg-white text-gray-900 border-b-4 border-[#1cb0f6] rounded-tl-none shadow-md ring-2 ring-[#1cb0f6]/20'
+            : 'bg-white text-gray-900 border-b-4 border-gray-200 rounded-tl-none shadow-sm'
         }`}
       >
-        {/* Horizontal WhatsApp Audio Card Bar */}
-        <div className="flex items-center gap-3 bg-black/40 rounded-xl p-2.5 border border-white/10 mb-2.5">
-          {/* WhatsApp Style Play/Pause Circle Button */}
+        {/* Horizontal Audio Card Bar */}
+        <div className={`flex items-center gap-3 rounded-xl p-2.5 mb-2.5 border ${
+          isUser ? 'bg-black/15 border-white/20' : 'bg-gray-50 border-gray-200'
+        }`}>
+          {/* Play/Pause Circle Button */}
           <button
             id={`btn-play-${message.id}`}
             type="button"
             onClick={() => onPlayToggle(message)}
             disabled={message.isStreaming}
-            className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all flex-shrink-0 cursor-pointer active:scale-95 shadow-md ${
+            className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all flex-shrink-0 cursor-pointer active:scale-95 shadow-sm ${
               message.isStreaming
-                ? 'bg-white/10 text-gray-400 cursor-not-allowed animate-pulse'
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed animate-pulse'
                 : isPlaying
-                ? 'bg-[#00F0FF] text-black shadow-[0_0_15px_rgba(0,240,255,0.8)] animate-pulse'
+                ? (isUser ? 'bg-white text-[#58cc02]' : 'bg-[#58cc02] text-white shadow-md animate-pulse')
                 : isUser
-                ? 'bg-[#00F0FF]/20 hover:bg-[#00F0FF]/30 text-[#00F0FF] border border-[#00F0FF]/40'
-                : 'bg-white/10 hover:bg-white/20 text-[#00F0FF] border border-white/15'
+                ? 'bg-white/20 hover:bg-white/30 text-white'
+                : 'bg-[#58cc02] hover:bg-[#46a302] text-white'
             }`}
             title={message.isStreaming ? 'Streaming yapılıyor...' : isPlaying ? 'Durdur' : isUser ? 'Kendi Sesini Dinle' : 'Dinle'}
           >
             {message.isStreaming ? (
-              <span className="w-2.5 h-2.5 rounded-full bg-[#00F0FF] animate-ping" />
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
             ) : isPlaying ? (
-              <Pause size={16} className="text-black fill-black" />
+              <Pause size={16} className="fill-current" />
             ) : (
               <Play size={16} className="ml-0.5 fill-current" />
             )}
           </button>
 
-          {/* WhatsApp Waveform Bar with Live Progress Scrubber */}
+          {/* Waveform Bar with Live Progress Scrubber */}
           <div className="flex-1 flex flex-col justify-center gap-1 min-w-0">
             <div className="flex items-center gap-0.5 sm:gap-1 h-7">
               {waveformHeights.map((h, i) => {
@@ -132,14 +134,14 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
                     key={i}
                     className={`flex-1 rounded-full transition-all ${
                       message.isStreaming
-                        ? 'bg-[#00F0FF]/50 animate-pulse'
+                        ? 'bg-emerald-400 animate-pulse'
                         : isPassed
-                        ? 'bg-[#00F0FF] shadow-[0_0_6px_rgba(0,240,255,0.8)]'
+                        ? (isUser ? 'bg-white' : 'bg-[#58cc02]')
                         : isPlaying
-                        ? 'bg-[#00F0FF]/60'
+                        ? (isUser ? 'bg-white/70' : 'bg-[#58cc02]/60')
                         : isUser
-                        ? 'bg-[#00F0FF]/40'
-                        : 'bg-white/30'
+                        ? 'bg-white/40'
+                        : 'bg-gray-300'
                     }`}
                     style={{
                       height: message.isStreaming ? `${Math.max(6, ((i * 3) % 20) + 6)}px` : isPlaying ? `${Math.max(6, ((h * ((i % 3) + 2)) % 26))}px` : `${h}px`,
@@ -150,13 +152,15 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
               })}
             </div>
 
-            {/* Audio Duration & Read Receipt (WhatsApp Style Double Check) */}
-            <div className="flex items-center justify-between text-[10px] text-gray-400 font-mono">
-              <span>{message.isStreaming ? '⚡ GPU Akışı...' : isPlaying ? 'Oynatılıyor...' : isUser ? 'Kendi Sesin' : 'Sensei Sesi'}</span>
+            {/* Audio Duration & Read Receipt */}
+            <div className={`flex items-center justify-between text-[10px] font-bold ${
+              isUser ? 'text-white/80' : 'text-gray-500'
+            }`}>
+              <span>{message.isStreaming ? '⚡ GPU Akışı...' : isPlaying ? 'Oynatılıyor...' : isUser ? 'Kendi Sesin' : 'Sensei Timsah Sesi'}</span>
               <div className="flex items-center gap-1">
                 <span>{message.timestamp}</span>
                 {isUser && (
-                  <CheckCheck size={13} className="text-[#00F0FF] inline-block ml-0.5" />
+                  <CheckCheck size={13} className="text-white inline-block ml-0.5" />
                 )}
               </div>
             </div>
@@ -164,23 +168,29 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
         </div>
 
         {/* Message Primary Target Language Text */}
-        <div className="text-base sm:text-lg font-black text-white leading-snug px-0.5 flex items-center flex-wrap gap-1">
+        <div className={`text-base sm:text-lg font-black leading-snug px-0.5 flex items-center flex-wrap gap-1 ${
+          isUser ? 'text-white' : 'text-gray-900'
+        }`}>
           <span>{message.text}</span>
           {message.isStreaming && (
-            <span className="inline-block w-2 h-4 bg-[#00F0FF] animate-pulse ml-1 rounded-sm" />
+            <span className="inline-block w-2 h-4 bg-[#58cc02] animate-pulse ml-1 rounded-sm" />
           )}
         </div>
 
-        {/* Yellow Romaji / Phonetic Pronunciation Guide */}
+        {/* Romaji / Phonetic Pronunciation Guide */}
         {message.romaji && (
-          <div className="text-xs font-mono font-bold text-[#FFD700] mt-1 px-0.5">
+          <div className={`text-xs font-mono font-bold mt-1 px-0.5 ${
+            isUser ? 'text-yellow-200' : 'text-amber-600'
+          }`}>
             {message.romaji}
           </div>
         )}
 
-        {/* Turkish Translation Meaning */}
+        {/* Translation Meaning */}
         {message.nativeExplanation && (
-          <div className="pt-2 mt-2 border-t border-white/10 text-xs text-gray-300 leading-relaxed px-0.5">
+          <div className={`pt-2 mt-2 border-t text-xs leading-relaxed px-0.5 ${
+            isUser ? 'border-white/20 text-white/90' : 'border-gray-100 text-gray-600'
+          }`}>
             🇹🇷 {message.nativeExplanation}
           </div>
         )}

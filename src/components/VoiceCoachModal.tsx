@@ -6,6 +6,7 @@ import {
   MessageSquare, Radio, Search, Globe, ChevronRight, Trash2, Lock, Clock,
   Check, ArrowLeft
 } from 'lucide-react';
+import crocHear from '../assets/images/duo_croc_headphones_1789744807007.jpg';
 import { SUPPORTED_LANGUAGES, getLanguageCode } from '../data/languages';
 import { 
   getInitialSuggestionsForLanguage,
@@ -1321,9 +1322,9 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[150] flex flex-col bg-[#0A0512] text-white font-sans overflow-hidden">
-      {/* 1. TOP HEADER (PROMINENT BACK BUTTON, AVATAR, TITLE, SOUND & CONTROLS) */}
-      <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 bg-[#120B1C]/95 backdrop-blur-md border-b border-white/10 z-30 flex-shrink-0">
+    <div className="fixed inset-0 z-[150] flex flex-col bg-[#f7f9fa] text-gray-900 font-sans overflow-hidden">
+      {/* 1. TOP HEADER (PROMINENT BACK BUTTON, CROCODILE AVATAR, TITLE, SOUND & CONTROLS) */}
+      <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 bg-white border-b-2 border-gray-200 z-30 flex-shrink-0 shadow-xs">
         {/* Left: Prominent Back / Exit Button + Avatar + Title */}
         <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
           <button
@@ -1333,38 +1334,41 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
               stopAudioPlayback();
               onClose();
             }}
-            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 hover:bg-white/20 active:scale-85 active:translate-y-0.5 flex items-center justify-center text-white border border-white/15 transition-all flex-shrink-0 cursor-pointer shadow-sm select-none"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gray-100 hover:bg-gray-200 active:scale-85 active:translate-y-0.5 flex items-center justify-center text-gray-700 border border-gray-200 transition-all flex-shrink-0 cursor-pointer shadow-xs select-none"
             title="Geri Dön / Sohbetten Çık"
           >
             <ArrowLeft size={18} />
           </button>
 
           <div className="relative flex-shrink-0">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-tr from-[#00F0FF] via-[#7928CA] to-[#FF0080] p-0.5 shadow-md flex items-center justify-center">
-              <div className="w-full h-full bg-[#120B1C] rounded-full flex items-center justify-center text-sm sm:text-base">
-                👘
-              </div>
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border-2 border-[#58cc02] overflow-hidden shadow-xs bg-white">
+              <img
+                src={crocHear}
+                alt="Sensei Crocodile Coach"
+                referrerPolicy="no-referrer"
+                className="w-full h-full object-cover"
+              />
             </div>
             {/* Green Online Dot */}
-            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-[#25D366] border-2 border-[#0A0512] rounded-full shadow-sm"></span>
+            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-[#58cc02] border-2 border-white rounded-full shadow-xs"></span>
           </div>
 
           <div className="min-w-0">
             <div className="flex items-center gap-1 sm:gap-1.5">
-              <h2 className="text-xs sm:text-sm font-black text-white tracking-wide truncate">
+              <h2 className="text-xs sm:text-sm font-black text-gray-900 tracking-tight truncate">
                 Sensei Sesli Sohbet
               </h2>
-              <span className="px-1.5 py-0.2 bg-[#FF0080]/20 border border-[#FF0080]/50 text-[#FF80BF] text-[8px] sm:text-[9px] font-black rounded-full uppercase tracking-wider flex-shrink-0">
+              <span className="px-1.5 py-0.5 bg-emerald-100 border border-emerald-300 text-[#58cc02] text-[8px] sm:text-[9px] font-black rounded-full uppercase tracking-wider flex-shrink-0">
                 SESLİ KOÇ
               </span>
             </div>
-            <p className="text-[10px] text-gray-400 truncate">
+            <p className="text-[10px] text-gray-500 font-bold truncate">
               {currentLangObj.flag} {activeTargetLang}
             </p>
           </div>
         </div>
 
-        {/* Right Controls: Owner AI Pills (hidden from users), Target Language, Sound, Close Button */}
+        {/* Right Controls: Owner AI Pills, Target Language, Sound, Close Button */}
         <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
           {/* Sadece Uygulama Sahibi için Model Göstergeleri */}
           {isOwner && (
@@ -1381,10 +1385,10 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
                     }
                     setUseWebLLM(!useWebLLM);
                   }}
-                  className={`p-1.5 sm:px-2 sm:py-1 rounded-l-xl text-xs font-bold flex items-center gap-1 transition-all shadow-sm cursor-pointer select-none active:scale-95 ${
+                  className={`p-1.5 sm:px-2 sm:py-1 rounded-l-xl text-xs font-bold flex items-center gap-1 transition-all shadow-xs cursor-pointer select-none active:scale-95 ${
                     useWebLLM && webLLMStatus === 'ready'
-                      ? 'bg-[#00F0FF]/20 border border-[#00F0FF]/60 text-[#00F0FF]'
-                      : 'bg-white/5 border border-white/10 text-gray-400 hover:text-gray-200'
+                      ? 'bg-emerald-50 border border-emerald-300 text-[#58cc02]'
+                      : 'bg-gray-100 border border-gray-200 text-gray-500 hover:text-gray-700'
                   }`}
                   title={
                     webLLMStatus === 'ready'
@@ -1396,7 +1400,7 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
                     size={13}
                     className={
                       useWebLLM && webLLMStatus === 'ready'
-                        ? 'text-[#00F0FF] animate-pulse'
+                        ? 'text-[#58cc02] animate-pulse'
                         : 'text-gray-400'
                     }
                   />
@@ -1404,10 +1408,10 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
                   <span
                     className={`w-1.5 h-1.5 rounded-full ${
                       useWebLLM && webLLMStatus === 'ready'
-                        ? 'bg-[#00F0FF] animate-ping'
+                        ? 'bg-[#58cc02] animate-ping'
                         : webLLMStatus === 'ready'
-                        ? 'bg-emerald-400'
-                        : 'bg-amber-400/60'
+                        ? 'bg-emerald-500'
+                        : 'bg-amber-400'
                     }`}
                   />
                 </button>
@@ -1415,7 +1419,7 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
                   type="button"
                   onPointerDown={() => triggerTactilePress('selection')}
                   onClick={() => setIsWebLLMModalOpen(true)}
-                  className="p-1.5 sm:px-1.5 sm:py-1 bg-white/5 hover:bg-white/15 border border-white/10 rounded-r-xl text-gray-300 hover:text-[#00F0FF] transition-all cursor-pointer flex items-center active:scale-95"
+                  className="p-1.5 sm:px-1.5 sm:py-1 bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded-r-xl text-gray-500 hover:text-[#58cc02] transition-all cursor-pointer flex items-center active:scale-95"
                   title="Açık Kaynak WebLLM Ayarları"
                 >
                   <Settings size={12} />
@@ -1434,10 +1438,10 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
                     }
                     setUseGemmaOnDevice(!useGemmaOnDevice);
                   }}
-                  className={`p-1.5 sm:px-2 sm:py-1 rounded-l-xl text-xs font-bold flex items-center gap-1 transition-all shadow-sm cursor-pointer select-none active:scale-95 ${
+                  className={`p-1.5 sm:px-2 sm:py-1 rounded-l-xl text-xs font-bold flex items-center gap-1 transition-all shadow-xs cursor-pointer select-none active:scale-95 ${
                     useGemmaOnDevice && modelInfo.hasValidModel
-                      ? 'bg-[#00F0FF]/20 border border-[#00F0FF]/60 text-[#00F0FF]'
-                      : 'bg-white/5 border border-white/10 text-gray-400 hover:text-gray-200'
+                      ? 'bg-emerald-50 border border-emerald-300 text-[#58cc02]'
+                      : 'bg-gray-100 border border-gray-200 text-gray-500 hover:text-gray-700'
                   }`}
                   title={
                     !modelInfo.hasValidModel
@@ -1451,7 +1455,7 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
                     size={13}
                     className={
                       useGemmaOnDevice && modelInfo.hasValidModel
-                        ? 'text-[#00F0FF] animate-pulse'
+                        ? 'text-[#58cc02] animate-pulse'
                         : 'text-gray-400'
                     }
                   />
@@ -1459,7 +1463,7 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
                   <span
                     className={`w-1.5 h-1.5 rounded-full ${
                       useGemmaOnDevice && modelInfo.hasValidModel
-                        ? 'bg-[#00F0FF] animate-ping'
+                        ? 'bg-[#58cc02] animate-ping'
                         : modelInfo.hasValidModel
                         ? 'bg-emerald-400'
                         : 'bg-amber-400'
@@ -1470,7 +1474,7 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
                   type="button"
                   onPointerDown={() => triggerTactilePress('selection')}
                   onClick={() => setIsModelManagerOpen(true)}
-                  className="p-1.5 sm:px-1.5 sm:py-1 bg-white/5 hover:bg-white/15 border border-white/10 rounded-r-xl text-gray-300 hover:text-[#00F0FF] transition-all cursor-pointer flex items-center active:scale-95"
+                  className="p-1.5 sm:px-1.5 sm:py-1 bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded-r-xl text-gray-500 hover:text-[#58cc02] transition-all cursor-pointer flex items-center active:scale-95"
                   title="Gemma Model Ayarları"
                 >
                   <Settings size={12} />
@@ -1481,11 +1485,11 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
 
           {/* Locked Target Language Badge */}
           <div 
-            className="px-2 py-1 rounded-xl bg-white/10 border border-white/20 text-xs font-bold text-white flex items-center gap-1 shadow-sm select-none"
+            className="px-2.5 py-1 rounded-xl bg-gray-100 border border-gray-200 text-xs font-bold text-gray-800 flex items-center gap-1 shadow-xs select-none"
             title={`${activeTargetLang} dili aktif`}
           >
             <span className="text-xs">{currentLangObj.flag}</span>
-            <span className="text-[11px] font-black text-gray-200 hidden xs:inline">{activeTargetLang}</span>
+            <span className="text-[11px] font-black text-gray-700 hidden xs:inline">{activeTargetLang}</span>
           </div>
 
           {/* Sound / Stop Playback Toggle */}
@@ -1501,10 +1505,10 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
             }}
             className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center border transition-all cursor-pointer select-none active:scale-90 active:translate-y-0.5 ${
               activeAudioPlayingId
-                ? 'bg-[#00F0FF] border-[#00F0FF] text-black shadow-[0_0_12px_rgba(0,240,255,0.8)] animate-pulse'
+                ? 'bg-[#58cc02] border-[#58cc02] text-white shadow-xs animate-pulse'
                 : autoPlayAudio
-                ? 'bg-[#00F0FF]/20 border-[#00F0FF]/50 text-[#00F0FF]'
-                : 'bg-white/5 border-white/10 text-gray-400'
+                ? 'bg-emerald-50 border-emerald-300 text-[#58cc02]'
+                : 'bg-gray-100 border-gray-200 text-gray-400'
             }`}
             title={activeAudioPlayingId ? 'Durdur' : (autoPlayAudio ? 'Ses Açık' : 'Ses Kapalı')}
           >
@@ -1516,7 +1520,7 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
             type="button"
             onPointerDown={() => triggerTactilePress('selection')}
             onClick={handleClearHistory}
-            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 flex items-center justify-center text-gray-300 hover:text-red-300 transition-all active:scale-90 active:translate-y-0.5 cursor-pointer select-none"
+            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gray-100 hover:bg-red-50 border border-gray-200 hover:border-red-300 flex items-center justify-center text-gray-500 hover:text-red-500 transition-all active:scale-90 active:translate-y-0.5 cursor-pointer select-none"
             title="Sohbeti Temizle"
           >
             <Trash2 size={13} />
@@ -1530,7 +1534,7 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
               stopAudioPlayback();
               onClose();
             }}
-            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/10 hover:bg-red-500/30 border border-white/20 hover:border-red-500/50 flex items-center justify-center text-white hover:text-red-200 transition-all active:scale-90 active:translate-y-0.5 cursor-pointer select-none"
+            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gray-100 hover:bg-gray-200 border border-gray-200 flex items-center justify-center text-gray-700 transition-all active:scale-90 active:translate-y-0.5 cursor-pointer select-none"
             title="Kapat"
           >
             <X size={15} />
@@ -1538,19 +1542,19 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
         </div>
       </div>
 
-      {/* 2. CHAT STREAM (FULL HEIGHT, CLEAN WHATSAPP-STYLE VOICE NOTES) */}
-      <div className="flex-1 overflow-y-auto px-3.5 py-4 space-y-3.5 no-scrollbar">
+      {/* 2. CHAT STREAM (FULL HEIGHT, CLEAN DUOLINGO-STYLE VOICE NOTES) */}
+      <div className="flex-1 overflow-y-auto px-3.5 py-4 space-y-3.5 no-scrollbar bg-[#f7f9fa]">
         {/* Onboarding Guidance Banner */}
-        <div className="bg-gradient-to-r from-[#24173F]/90 via-[#1D1133]/90 to-[#150B24]/90 border border-[#00F0FF]/30 rounded-2xl p-3 sm:p-3.5 shadow-lg flex items-start gap-3">
-          <div className="w-8 h-8 rounded-full bg-[#00F0FF]/20 text-[#00F0FF] flex items-center justify-center flex-shrink-0 mt-0.5 border border-[#00F0FF]/40">
+        <div className="bg-white border-2 border-b-4 border-gray-200 rounded-2xl p-3.5 sm:p-4 shadow-xs flex items-start gap-3">
+          <div className="w-8 h-8 rounded-full bg-emerald-100 text-[#58cc02] flex items-center justify-center flex-shrink-0 mt-0.5 border border-emerald-300">
             <Sparkles size={16} />
           </div>
           <div className="flex-1 min-w-0">
-            <h4 className="text-xs font-bold text-[#00F0FF] mb-0.5 flex items-center gap-1.5">
+            <h4 className="text-xs font-black text-gray-900 mb-0.5 flex items-center gap-1.5">
               <span>Sensei Sesli Sohbet'e Hoş Geldin!</span>
             </h4>
-            <p className="text-[11px] text-gray-300 leading-relaxed">
-              Mikrofona basıp dilediğiniz gibi Türkçe veya {activeTargetLang} sesli mesaj gönderin. Konuştuğunuz her kelime WhatsApp gibi sesli mesaj olarak iletilir ve altta hem yazılı hem de telaffuzlu olarak gösterilir.
+            <p className="text-[11px] text-gray-500 font-medium leading-relaxed">
+              Mikrofona basıp dilediğiniz gibi Türkçe veya {activeTargetLang} sesli mesaj gönderin. Konuştuğunuz her kelime sesli mesaj olarak iletilir ve dinlenebilir.
             </p>
           </div>
         </div>
@@ -1571,39 +1575,39 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
 
         {/* Loading Indicator */}
         {isLoading && (
-          <div className="flex items-center gap-2 p-3 bg-[#181026] rounded-2xl border border-white/10 w-fit">
+          <div className="flex items-center gap-2 p-3 bg-white rounded-2xl border-2 border-gray-200 shadow-xs w-fit">
             <div className="flex gap-1">
-              <div className="w-2 h-2 bg-[#00F0FF] rounded-full animate-bounce"></div>
-              <div className="w-2 h-2 bg-[#7928CA] rounded-full animate-bounce [animation-delay:0.2s]"></div>
-              <div className="w-2 h-2 bg-[#FF0080] rounded-full animate-bounce [animation-delay:0.4s]"></div>
+              <div className="w-2 h-2 bg-[#58cc02] rounded-full animate-bounce"></div>
+              <div className="w-2 h-2 bg-[#58cc02] rounded-full animate-bounce [animation-delay:0.2s]"></div>
+              <div className="w-2 h-2 bg-[#58cc02] rounded-full animate-bounce [animation-delay:0.4s]"></div>
             </div>
-            <span className="text-xs text-gray-300">Sensei yanıt veriyor...</span>
+            <span className="text-xs font-bold text-gray-600">Sensei yanıt veriyor...</span>
           </div>
         )}
 
         <div ref={chatBottomRef} />
       </div>
 
-      {/* 3. DYNAMIC SUGGESTIONS TRAY & LIVE SEARCH BOX (ÇOKLU DİL UYUMLU VE YATAY KAYDIRILABİLİR) */}
-      <div className="bg-[#120A20] border-t border-white/10 shadow-2xl z-30 flex-shrink-0">
+      {/* 3. DYNAMIC SUGGESTIONS TRAY & LIVE SEARCH BOX */}
+      <div className="bg-white border-t-2 border-gray-200 shadow-lg z-30 flex-shrink-0">
         {/* Tray Header & Live Multi-Language Search Input */}
-        <div className="px-3.5 py-2 bg-[#170E28] flex flex-col gap-2 border-b border-white/5">
+        <div className="px-3.5 py-2.5 bg-gray-50 flex flex-col gap-2 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
-              <Sparkles size={14} className="text-[#00F0FF]" />
-              <span className="text-[11px] font-black text-[#00F0FF] uppercase tracking-wider">
+              <Sparkles size={14} className="text-[#58cc02]" />
+              <span className="text-[11px] font-black text-gray-800 uppercase tracking-wider">
                 {activeTargetLang} Cevap & Telaffuz Rehberi
               </span>
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="text-[10px] text-gray-400 hidden sm:inline">
+              <span className="text-[10px] text-gray-500 font-bold hidden sm:inline">
                 Dinle ➔ Mikrofona Söyle
               </span>
               <button
                 type="button"
                 onClick={() => setIsTrayExpanded(!isTrayExpanded)}
-                className="text-xs text-gray-400 hover:text-white flex items-center gap-1 font-bold"
+                className="text-xs text-gray-600 hover:text-gray-900 flex items-center gap-1 font-bold cursor-pointer"
               >
                 <span>{isTrayExpanded ? 'Küçült' : 'Genişlet'}</span>
                 {isTrayExpanded ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
@@ -1611,7 +1615,7 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
             </div>
           </div>
 
-          {/* Live Search Input (Yazılan kelime veya cümle ile anında eşleşen kartları listeler) */}
+          {/* Live Search Input */}
           {isTrayExpanded && (
             <div className="relative flex items-center">
               <Search size={14} className="absolute left-3 text-gray-400 pointer-events-none" />
@@ -1620,13 +1624,13 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder={`Kelime veya Cümle Ara / Yaz (Örn: Merhaba, nasılsın, teşekkürler)...`}
-                className="w-full bg-[#0E061A] border border-white/15 rounded-xl pl-8.5 pr-8 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#00F0FF] transition-all"
+                className="w-full bg-white border-2 border-gray-200 rounded-xl pl-8.5 pr-8 py-1.5 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#58cc02] transition-all"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 text-gray-400 hover:text-white p-0.5 text-xs cursor-pointer"
+                  className="absolute right-2.5 text-gray-400 hover:text-gray-600 p-0.5 text-xs cursor-pointer"
                   title="Temizle"
                 >
                   <X size={13} />
@@ -1636,12 +1640,12 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
           )}
         </div>
 
-        {/* Display Cards Carousel (Yatay kaydırılabilir temiz kartlar) */}
+        {/* Display Cards Carousel */}
         {isTrayExpanded && (
-          <div className="p-3">
+          <div className="p-3 bg-gray-50">
             {isTranslating && searchQuery.trim().length > 0 && searchResults.length === 0 ? (
-              <div className="p-3 text-center text-xs text-gray-400 bg-white/5 rounded-xl border border-white/10 flex items-center justify-center gap-2">
-                <span className="inline-block w-2 h-2 rounded-full bg-[#00F0FF] animate-ping"></span>
+              <div className="p-3 text-center text-xs text-gray-500 bg-white rounded-xl border border-gray-200 flex items-center justify-center gap-2">
+                <span className="inline-block w-2 h-2 rounded-full bg-[#58cc02] animate-ping"></span>
                 <span>'{searchQuery}' ifadesi çevriliyor...</span>
               </div>
             ) : (
@@ -1655,15 +1659,15 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
                       key={idx}
                       onPointerDown={() => triggerTactilePress('selection')}
                       onClick={() => handleSelectPhrase(phrase)}
-                      className={`text-left p-2.5 rounded-xl transition-all relative border flex flex-col justify-between gap-1.5 group cursor-pointer flex-shrink-0 min-w-[210px] sm:min-w-[240px] max-w-[280px] active:scale-[0.97] active:translate-y-0.5 select-none ${
+                      className={`text-left p-2.5 rounded-xl transition-all relative border-2 border-b-4 flex flex-col justify-between gap-1.5 group cursor-pointer flex-shrink-0 min-w-[210px] sm:min-w-[240px] max-w-[280px] active:scale-[0.97] active:translate-y-0.5 select-none ${
                         isSelected
-                          ? 'bg-gradient-to-b from-[#24173F] to-[#180E2B] border-[#00F0FF] shadow-[0_0_15px_rgba(0,240,255,0.4)] ring-2 ring-[#00F0FF]'
-                          : 'bg-[#180F2A] hover:bg-[#201439] border-white/10 hover:border-[#00F0FF]/40'
+                          ? 'bg-emerald-50 border-[#58cc02] shadow-xs'
+                          : 'bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300'
                       }`}
                     >
                       {/* Top: Target text + Listen Button */}
                       <div className="flex items-start justify-between gap-1.5">
-                        <span className="text-xs sm:text-sm font-black text-white leading-tight">
+                        <span className="text-xs sm:text-sm font-black text-gray-900 leading-tight">
                           {phrase.target}
                         </span>
 
@@ -1679,10 +1683,10 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
                               e.stopPropagation();
                               handleSelectPhrase(phrase);
                             }}
-                            className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold transition-all cursor-pointer active:scale-90 ${
+                            className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black transition-all cursor-pointer active:scale-90 ${
                               isThisPlaying
-                                ? 'bg-[#00F0FF] text-black animate-pulse shadow-[0_0_10px_rgba(0,240,255,0.6)]'
-                                : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                                ? 'bg-[#58cc02] text-white animate-pulse'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                             }`}
                             title="Telaffuzu Dinle"
                           >
@@ -1693,19 +1697,19 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
                       </div>
 
                       {/* Middle: Phonetic / Romaji */}
-                      <div className="text-[11px] font-mono font-bold text-[#FFD700] truncate">
+                      <div className="text-[11px] font-mono font-bold text-[#58cc02] truncate">
                         {phrase.romaji}
                       </div>
 
                       {/* Bottom: Native Meaning + Selection Indicator */}
-                      <div className="text-[10px] text-gray-300 border-t border-white/5 pt-1 leading-snug flex items-center justify-between">
-                        <span className="truncate">🇹🇷 {phrase.native}</span>
+                      <div className="text-[10px] text-gray-600 border-t border-gray-100 pt-1 leading-snug flex items-center justify-between">
+                        <span className="truncate font-medium">🇹🇷 {phrase.native}</span>
                         {isSelected ? (
-                          <span className="text-[9px] px-1.5 py-0.5 bg-[#00F0FF] text-black rounded font-black flex items-center gap-0.5 flex-shrink-0">
+                          <span className="text-[9px] px-1.5 py-0.5 bg-[#58cc02] text-white rounded font-black flex items-center gap-0.5 flex-shrink-0">
                             ✓ Seçildi
                           </span>
                         ) : (
-                          <span className="text-[9px] text-gray-400 group-hover:text-[#00F0FF] transition-colors flex-shrink-0">
+                          <span className="text-[9px] text-gray-400 group-hover:text-[#58cc02] font-bold transition-colors flex-shrink-0">
                             Seç
                           </span>
                         )}
@@ -1720,23 +1724,23 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
 
         {/* Persistent UX Guidance Tip when tray is collapsed */}
         {!isTrayExpanded && (
-          <div className="px-3.5 py-1 bg-[#150D24] text-center text-[10px] text-gray-400 border-t border-white/5">
-            🎯 <span className="text-[#00F0FF] font-semibold">Kart Seçimi + Sesli Mesaj:</span> Kartınızı seçip mikrofona basarak ses kaydınızı oluşturun!
+          <div className="px-3.5 py-1.5 bg-gray-50 text-center text-[10px] text-gray-500 border-t border-gray-200 font-bold">
+            🎯 <span className="text-[#58cc02] font-black">Kart Seçimi + Sesli Mesaj:</span> Kartınızı seçip mikrofona basarak ses kaydınızı oluşturun!
           </div>
         )}
 
-        {/* Requirement: Prominent Stylish Toast Warning if mic pressed without card selection */}
+        {/* Prominent Stylish Toast Warning if mic pressed without card selection */}
         {inputFeedbackTip && (
-          <div className="px-4 py-2 bg-gradient-to-r from-amber-600/30 via-amber-500/25 to-orange-600/30 border-t border-amber-500/50 text-amber-200 text-xs text-center font-bold flex items-center justify-center gap-2 shadow-lg animate-pulse z-40">
+          <div className="px-4 py-2 bg-amber-50 border-t-2 border-amber-300 text-amber-800 text-xs text-center font-bold flex items-center justify-center gap-2 shadow-sm animate-pulse z-40">
             <span className="text-base">⚠️</span>
             <span>{inputFeedbackTip}</span>
           </div>
         )}
 
-        {/* 4. BOTTOM GLOWING VOICE & TARGETED CONTROL BAR */}
-        <div className="px-4 py-3 bg-[#0A0412] border-t border-white/10">
+        {/* 4. BOTTOM DUOLINGO VOICE & TARGETED CONTROL BAR */}
+        <div className="px-4 py-3 bg-white border-t-2 border-gray-200">
           {isRecording ? (
-            /* WhatsApp Style Interactive Recording Bar */
+            /* Interactive Recording Bar */
             <VoiceRecorder
               isRecording={isRecording}
               recordingSeconds={recordingSeconds}
@@ -1752,16 +1756,16 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
             /* Idle Ready State Bar */
             <div className="flex flex-col gap-2">
               {activeSelectedPhrase && (
-                <div className="flex items-center justify-between px-2.5 py-1 rounded-lg bg-[#00F0FF]/10 border border-[#00F0FF]/30">
+                <div className="flex items-center justify-between px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200">
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-[11px] font-bold text-[#00F0FF] truncate">
+                    <span className="text-[11px] font-bold text-[#58cc02] truncate">
                       🎯 Seçili Kart: {activeSelectedPhrase.target} ({activeSelectedPhrase.romaji}) — 🇹🇷 {activeSelectedPhrase.native}
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={() => setActiveSelectedPhrase(null)}
-                    className="text-[10px] text-gray-400 hover:text-white px-2 py-0.5 rounded bg-white/10 transition-all cursor-pointer"
+                    className="text-[10px] text-gray-500 hover:text-gray-800 px-2 py-0.5 rounded bg-gray-200 hover:bg-gray-300 transition-all cursor-pointer font-bold"
                   >
                     Seçimi Kaldır
                   </button>
@@ -1792,7 +1796,7 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
                     };
                     finishSubmission(cardToSubmit, undefined, true);
                   }}
-                  className="flex-1 flex items-center gap-2 bg-white/5 hover:bg-white/10 focus-within:bg-white/10 focus-within:border-[#00F0FF]/50 border border-white/10 rounded-full px-3.5 py-2 transition-all min-w-0"
+                  className="flex-1 flex items-center gap-2 bg-gray-100 hover:bg-gray-150 focus-within:bg-white focus-within:border-[#58cc02] border-2 border-gray-200 rounded-full px-3.5 py-1.5 transition-all min-w-0"
                 >
                   <input
                     type="text"
@@ -1803,13 +1807,13 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
                         ? `"${activeSelectedPhrase.target}" veya aklına gelen bir şey yaz...` 
                         : "Sensei'ye bir soru sor veya dilediğini yaz..."
                     }
-                    className="flex-1 bg-transparent text-xs text-white placeholder-gray-400 focus:outline-none min-w-0"
+                    className="flex-1 bg-transparent text-xs text-gray-800 placeholder-gray-400 focus:outline-none min-w-0 font-medium"
                   />
                   {quickInputText.trim() && (
                     <button
                       type="submit"
                       onPointerDown={() => triggerTactilePress('light')}
-                      className="p-1.5 rounded-full bg-[#00F0FF] text-black hover:scale-105 active:scale-85 active:translate-y-0.5 transition-all flex-shrink-0 cursor-pointer shadow-[0_0_8px_rgba(0,240,255,0.6)] select-none"
+                      className="p-1.5 rounded-full bg-[#58cc02] text-white hover:scale-105 active:scale-85 active:translate-y-0.5 transition-all flex-shrink-0 cursor-pointer shadow-xs select-none"
                       title="Gönder"
                     >
                       <Send size={13} className="font-bold" />
@@ -1817,20 +1821,20 @@ export const VoiceCoachModal: React.FC<VoiceCoachModalProps> = ({
                   )}
                 </form>
 
-                {/* Center/Right Glowing Big Voice Button */}
+                {/* Center/Right Duolingo-style Green Mic Button */}
                 <button
                   id="btn-start-voice-recording"
                   type="button"
                   onPointerDown={() => triggerTactilePress('medium')}
                   onClick={handleStartRecording}
-                  className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex flex-col items-center justify-center transition-all select-none shadow-2xl relative flex-shrink-0 cursor-pointer bg-gradient-to-tr from-[#00F0FF] via-[#00B4D8] to-[#7928CA] text-black shadow-[0_0_25px_rgba(0,240,255,0.8)] hover:scale-105 active:scale-85 active:translate-y-1 ring-2 ring-[#00F0FF]/60"
+                  className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex flex-col items-center justify-center transition-all select-none shadow-md relative flex-shrink-0 cursor-pointer bg-[#58cc02] hover:bg-[#46a302] border-b-4 border-[#3e8e02] text-white hover:scale-105 active:scale-95 active:border-b-0 active:translate-y-1"
                   title={
                     activeSelectedPhrase
                       ? `"${activeSelectedPhrase.target}" kelimesini söylemek veya serbest konuşmak için bas`
                       : 'Serbest konuşmak veya pratik yapmak için mikrofona bas'
                   }
                 >
-                  <Mic size={20} className="text-black font-black" />
+                  <Mic size={22} className="text-white font-black" />
                 </button>
               </div>
             </div>

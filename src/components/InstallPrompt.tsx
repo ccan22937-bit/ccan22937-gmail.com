@@ -126,27 +126,29 @@ export function InstallPrompt() {
             </div>
 
             <div className="flex items-center gap-2 pt-1 border-t border-white/10">
-              <button
-                onClick={() => setShowGuideModal(true)}
-                className="px-3 py-2 text-xs font-semibold text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition flex items-center gap-1.5"
+              <a
+                href="/sensei-app.zip"
+                download="Sensei_Full_App_Source.zip"
+                className="flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.4)] active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer text-center"
               >
-                <HelpCircle size={14} />
-                Nasıl İner?
-              </button>
-              
-              <button
-                onClick={() => {
+                <Download size={15} className="stroke-[2.5]" />
+                <span>ZİP Olarak İndir (42MB)</span>
+              </a>
+
+              <a
+                href="/SenSey.apk"
+                download="SenSey.apk"
+                onClick={(e) => {
                   if (deferredPrompt) {
+                    e.preventDefault();
                     triggerNativePrompt();
-                  } else {
-                    window.dispatchEvent(new CustomEvent('open-apk-download'));
                   }
                 }}
-                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-[#00F0FF] to-[#00A3FF] hover:from-[#38f4ff] hover:to-[#1cb0ff] text-black font-extrabold text-xs sm:text-sm rounded-xl shadow-[0_0_15px_rgba(0,240,255,0.4)] hover:shadow-[0_0_20px_rgba(0,240,255,0.7)] active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="flex-1 py-2.5 bg-gradient-to-r from-[#00F0FF] to-[#00A3FF] hover:from-[#38f4ff] hover:to-[#1cb0ff] text-black font-extrabold text-xs sm:text-sm rounded-xl shadow-[0_0_15px_rgba(0,240,255,0.4)] active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer text-center"
               >
-                <Download size={16} className="stroke-[2.5]" />
-                Şimdi İndir & Kur
-              </button>
+                <Smartphone size={15} className="stroke-[2.5]" />
+                <span>APK / Kur</span>
+              </a>
             </div>
           </div>
         </div>
@@ -190,17 +192,33 @@ export function InstallPrompt() {
               </div>
             )}
 
+            {/* Direct Full ZIP Download Button */}
+            <div className="mb-3">
+              <a
+                href="/api/download-zip"
+                download="Sensei_Full_App_Source.zip"
+                className="w-full py-3 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-extrabold text-sm rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:scale-[1.02] active:scale-98 transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Download size={18} />
+                <span>Tüm Projeyi Eksiksiz ZİP Olarak İndir (44 MB)</span>
+              </a>
+            </div>
+
             {/* Direct APK File Download Button */}
             <div className="mb-4">
               <button
                 onClick={() => {
-                  setShowGuideModal(false);
-                  window.dispatchEvent(new CustomEvent('open-apk-download'));
+                  const link = document.createElement('a');
+                  link.href = '/api/download-apk';
+                  link.download = 'SenSey.apk';
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
                 }}
-                className="w-full py-3 bg-[#10B981] hover:bg-[#059669] text-white font-extrabold text-sm rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:scale-[1.02] active:scale-98 transition flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-3 bg-[#00F0FF] hover:bg-[#38f4ff] text-black font-extrabold text-sm rounded-xl shadow-[0_0_20px_rgba(0,240,255,0.4)] hover:scale-[1.02] active:scale-98 transition flex items-center justify-center gap-2 cursor-pointer"
               >
-                <Download size={18} />
-                SenSey.apk Dosyasını İndir (22 MB)
+                <Smartphone size={18} />
+                SenSey.apk Dosyasını İndir
               </button>
             </div>
 

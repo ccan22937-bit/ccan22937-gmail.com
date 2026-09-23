@@ -13,6 +13,7 @@ process.on("unhandledRejection", (reason) => {
 import "dotenv/config";
 import express from "express";
 import path from "path";
+import { execSync } from "child_process";
 import { GoogleGenAI } from "@google/genai";
 import { getLanguageCode } from "./src/data/languages";
 import { generateLocalDialogueResponse, hasKnownIntent } from "./src/data/localDialogueEngine";
@@ -143,6 +144,45 @@ async function startServer() {
       return res.sendFile(apkPath);
     }
     return res.status(404).json({ error: "APK file not found" });
+  });
+
+  // Direct Full-Project ZIP Download Endpoints (Eksiksiz Tüm Kaynak Kodu ZİP İndir)
+  app.get(["/api/download-zip", "/download/sensei-app.zip", "/sensei-app.zip", "/sensei-source.zip", "/download-zip", "/Sensei_Full_App_Source.zip"], (req, res) => {
+    try {
+      const zipPath = path.join(process.cwd(), "public", "sensei-app.zip");
+      if (fs.existsSync(zipPath)) {
+        res.setHeader("Content-Type", "application/zip");
+        res.setHeader("Content-Disposition", 'attachment; filename="Sensei_Full_App_Source.zip"');
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        return res.sendFile(zipPath);
+      }
+
+      // If missing, generate once
+      try {
+        execSync(`python3 -c "import zipfile, os
+with zipfile.ZipFile('${zipPath}', 'w', zipfile.ZIP_DEFLATED) as z:
+    for root, dirs, files in os.walk('.'):
+        dirs[:] = [d for d in dirs if d not in ['node_modules', '.git', 'dist', '.cache']]
+        for file in files:
+            if file == 'sensei-app.zip': continue
+            fp = os.path.join(root, file)
+            arcname = os.path.relpath(fp, '.')
+            z.write(fp, arcname)"`, { timeout: 30000 });
+      } catch (genErr) {
+        console.error("Zip generation error:", genErr);
+      }
+
+      if (fs.existsSync(zipPath)) {
+        res.setHeader("Content-Type", "application/zip");
+        res.setHeader("Content-Disposition", 'attachment; filename="Sensei_Full_App_Source.zip"');
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        return res.sendFile(zipPath);
+      }
+      return res.status(500).json({ error: "ZIP packaging failed" });
+    } catch (err: any) {
+      console.error("ZIP download error:", err);
+      return res.status(500).json({ error: "Could not serve zip" });
+    }
   });
 
   app.post("/api/webhook/uption", async (req, res) => {

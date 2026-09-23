@@ -1,9 +1,9 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
-import { motion, HTMLMotionProps } from 'motion/react';
+import { motion } from 'motion/react';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger' | 'success' | 'outline' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'danger' | 'success' | 'outline' | 'ghost' | 'warning';
   size?: 'sm' | 'md' | 'lg';
   fullWidth?: boolean;
 }
@@ -17,21 +17,22 @@ export function Button({
   ...props 
 }: ButtonProps) {
   
-  const baseStyles = "relative font-bold uppercase tracking-wide transition-all rounded-2xl active:translate-y-[4px] active:border-b-0 active:mt-[4px]";
+  const baseStyles = "relative font-extrabold uppercase tracking-wider transition-all select-none rounded-2xl cursor-pointer flex items-center justify-center gap-2 active:translate-y-[4px] active:shadow-none";
   
   const variants = {
-    primary: "bg-[#00F0FF] hover:bg-[#00D0DD] text-black border-b-4 border-[#009A99] shadow-[0_0_15px_rgba(0,240,255,0.2)] hover:shadow-[0_0_25px_rgba(0,240,255,0.4)]",
-    success: "bg-[#00FF66] hover:bg-[#00CC52] text-black border-b-4 border-[#00993D] shadow-[0_0_15px_rgba(0,255,102,0.2)] hover:shadow-[0_0_25px_rgba(0,255,102,0.4)]",
-    danger: "bg-[#FF4B4B] hover:bg-[#CC3C3C] text-white border-b-4 border-[#992D2D] shadow-[0_0_15px_rgba(255,75,75,0.2)] hover:shadow-[0_0_25px_rgba(255,75,75,0.4)]",
-    secondary: "bg-[#1A1A24] hover:bg-[#252533] text-gray-500 border-b-4 border-black/50 shadow-[0_4px_15px_rgba(0,0,0,0.5)]",
-    outline: "bg-[#0D0814] border-2 border-b-4 border-white/20 text-gray-300 hover:bg-white/10 active:bg-white/5",
-    ghost: "bg-transparent text-gray-400 hover:bg-white/10 hover:text-white active:translate-y-0 active:border-b-0 active:mt-0 font-medium"
+    primary: "bg-[#58cc02] hover:bg-[#46a302] text-white shadow-[0_4px_0_0_#3e8e02] border-t border-white/25",
+    success: "bg-[#58cc02] hover:bg-[#46a302] text-white shadow-[0_4px_0_0_#3e8e02] border-t border-white/25",
+    danger: "bg-[#ff4b4b] hover:bg-[#ea3e3e] text-white shadow-[0_4px_0_0_#d32f2f] border-t border-white/20",
+    warning: "bg-[#ffc800] hover:bg-[#e6b400] text-amber-950 shadow-[0_4px_0_0_#cc9a00] border-t border-white/30",
+    secondary: "bg-[#f1f5f9] hover:bg-[#e2e8f0] text-gray-700 shadow-[0_4px_0_0_#cbd5e1] border border-gray-200",
+    outline: "bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-200 shadow-[0_4px_0_0_#e2e8f0]",
+    ghost: "bg-transparent text-gray-500 hover:bg-gray-100 hover:text-gray-900 active:translate-y-0 active:shadow-none font-bold"
   };
 
   const sizes = {
-    sm: "px-4 py-2 text-sm",
-    md: "px-6 py-3 text-[15px]",
-    lg: "px-8 py-4 text-lg"
+    sm: "px-4 py-2.5 text-xs",
+    md: "px-6 py-3.5 text-sm",
+    lg: "px-8 py-4.5 text-base"
   };
 
   return (
@@ -41,7 +42,7 @@ export function Button({
         variants[variant], 
         sizes[size], 
         fullWidth && "w-full",
-        props.disabled && "opacity-50 cursor-not-allowed active:translate-y-0 active:border-b-4 active:mt-0",
+        props.disabled && "opacity-50 cursor-not-allowed bg-gray-200 text-gray-400 shadow-none border-0 active:translate-y-0 active:shadow-none pointer-events-none",
         className
       )}
       {...props}
@@ -53,3 +54,4 @@ export function Button({
 
 // Wrap in motion for animations if needed
 export const MotionButton = motion(Button as any);
+

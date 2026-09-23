@@ -37,59 +37,62 @@ export function LeaderboardScreen({ onBack, currentUserId }: { onBack: () => voi
   }, []);
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-[#0D0814] text-white">
-      <div className="flex items-center p-4 border-b border-white/10 mt-8 md:mt-0">
-        <button onClick={onBack} className="p-2 rounded-full hover:bg-white/10 transition">
+    <div className="flex flex-col min-h-screen bg-[#f7f9fa] text-gray-900">
+      <div className="flex items-center p-4 bg-white border-b-2 border-gray-200 sticky top-0 z-20">
+        <button onClick={onBack} className="p-2 rounded-xl hover:bg-gray-100 text-gray-700 transition cursor-pointer">
           <ArrowLeft size={24} />
         </button>
-        <h1 className="text-xl font-bold ml-4">Liderlik Tablosu</h1>
+        <h1 className="text-xl font-black ml-3 text-gray-900 tracking-tight">Liderlik Tablosu</h1>
       </div>
       
-      <div className="flex-1 overflow-y-auto p-4 pb-32">
-        <div className="flex justify-center mb-8 mt-4">
-          <div className="w-24 h-24 bg-yellow-500/20 rounded-full flex items-center justify-center border-4 border-yellow-500 shadow-[0_0_30px_rgba(234,179,8,0.3)]">
-            <Trophy size={40} className="text-yellow-500" />
+      <div className="flex-1 overflow-y-auto p-4 pb-32 max-w-2xl mx-auto w-full">
+        <div className="flex flex-col items-center justify-center mb-6 mt-2">
+          <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center border-4 border-amber-400 shadow-sm mb-3">
+            <Trophy size={36} className="text-amber-500" />
           </div>
+          <h2 className="text-lg font-black text-gray-900">En Başarılı Öğrenciler</h2>
+          <p className="text-xs text-gray-500 font-medium">Doğru cevaplanan kelimelere göre sıralanır</p>
         </div>
         
         {loading ? (
           <div className="flex justify-center py-10">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-yellow-500"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#58cc02]"></div>
           </div>
         ) : (
-          <div className="bg-[#1A1A24] rounded-3xl overflow-hidden border border-white/5 max-w-2xl mx-auto">
+          <div className="bg-white rounded-3xl overflow-hidden border-2 border-b-4 border-gray-200 shadow-xs">
             {leaders.map((user, index) => {
               const isCurrentUser = user.id === currentUserId;
               return (
                 <div 
                   key={user.id} 
-                  className={`flex items-center p-4 border-b border-white/5 ${isCurrentUser ? 'bg-yellow-500/10' : 'hover:bg-white/5'} transition`}
+                  className={`flex items-center p-4 border-b border-gray-100 last:border-b-0 ${isCurrentUser ? 'bg-emerald-50' : 'hover:bg-gray-50'} transition`}
                 >
-                  <div className="w-8 text-center font-bold text-gray-400 text-lg">
-                    {index + 1}
+                  <div className={`w-8 text-center font-black text-base ${index === 0 ? 'text-amber-500' : index === 1 ? 'text-gray-400' : index === 2 ? 'text-amber-700' : 'text-gray-400'}`}>
+                    {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}
                   </div>
-                  <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mx-4 overflow-hidden border border-white/20">
+                  <div className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center mx-3 overflow-hidden border-2 border-gray-200">
                     {user.photoURL ? (
                       <img src={user.photoURL} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     ) : (
-                      <span className="text-lg font-bold">{user.displayName?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || 'U'}</span>
+                      <span className="text-base font-black text-gray-700">{user.displayName?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || 'U'}</span>
                     )}
                   </div>
                   <div className="flex-1">
-                    <div className={`font-bold text-lg ${isCurrentUser ? 'text-yellow-500' : 'text-white'}`}>
+                    <div className={`font-black text-sm ${isCurrentUser ? 'text-[#58cc02]' : 'text-gray-900'}`}>
                       {user.displayName || user.email?.split('@')[0] || 'Kullanıcı'}
+                      {isCurrentUser && <span className="ml-2 text-[10px] bg-[#58cc02] text-white px-2 py-0.5 rounded-full">Sen</span>}
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold text-xl text-white">{user.correct || 0}</div>
-                    <div className="text-xs text-gray-500">Puan</div>
+                    <div className="font-black text-base text-gray-900">{user.correct || 0}</div>
+                    <div className="text-[10px] font-bold text-gray-400">Puan</div>
                   </div>
                 </div>
               );
             })}
             
             {leaders.length === 0 && (
-              <div className="p-8 text-center text-gray-500">
+              <div className="p-8 text-center text-gray-400 font-bold text-sm">
                 Henüz yeterli veri yok.
               </div>
             )}

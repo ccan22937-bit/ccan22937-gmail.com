@@ -702,22 +702,42 @@ export function normalizeSearchString(str: string): string {
     .trim();
 }
 
+export function normalizeTargetLanguageName(lang: string = 'Japonca'): 'Japonca' | 'İngilizce' | 'Almanca' | 'İspanyolca' | 'Fransızca' | 'İtalyanca' | 'Korece' | 'Arapça' | 'Rusça' | 'Çince' | 'Türkçe' {
+  if (!lang) return 'İngilizce';
+  const l = lang.toLowerCase().trim();
+  if (l.startsWith('japon') || l === 'ja' || l.startsWith('japan')) return 'Japonca';
+  if (l.startsWith('ingiliz') || l.startsWith('i̇ngiliz') || l === 'en' || l.startsWith('engl')) return 'İngilizce';
+  if (l.startsWith('alman') || l === 'de' || l.startsWith('germ')) return 'Almanca';
+  if (l.startsWith('fransız') || l.startsWith('fransiz') || l === 'fr' || l.startsWith('fren')) return 'Fransızca';
+  if (l.startsWith('ispanyol') || l.startsWith('i̇spanyol') || l === 'es' || l.startsWith('span')) return 'İspanyolca';
+  if (l.startsWith('rus') || l === 'ru') return 'Rusça';
+  if (l.startsWith('çin') || l.startsWith('cin') || l === 'zh' || l.startsWith('chin')) return 'Çince';
+  if (l.startsWith('arap') || l === 'ar') return 'Arapça';
+  if (l.startsWith('türk') || l.startsWith('turk') || l === 'tr') return 'Türkçe';
+  if (l.startsWith('kore') || l === 'ko') return 'Korece';
+  if (l.startsWith('italyan') || l.startsWith('i̇talyan') || l === 'it') return 'İtalyanca';
+  return 'Japonca';
+}
+
 // Akıllı & Esnek Arama Fonksiyonu (Fuzzy & Substring Multi-Match)
 export function searchComprehensiveDictionary(
   query: string, 
   targetLang: string = 'Japonca'
 ): { target: string; romaji: string; native: string; category?: string }[] {
+  const normLang = normalizeTargetLanguageName(targetLang);
   const clean = normalizeSearchString(query);
   if (!clean || clean.length < 2) return [];
 
-  const matchedItems: DictionaryItem[] = [];
+  const matchedItems: { item: DictionaryItem; trans: { text: string; phonetic: string } }[] = [];
 
   for (const item of LOCAL_DICTIONARY) {
+    const trans = item.translations[normLang];
+    if (!trans || !trans.text) continue;
+
     const normTr = normalizeSearchString(item.tr);
     const normId = normalizeSearchString(item.id);
-    const trans = (item.translations as any)[targetLang] || item.translations.Japonca;
-    const normTarget = trans ? normalizeSearchString(trans.text) : '';
-    const normPhonetic = trans ? normalizeSearchString(trans.phonetic) : '';
+    const normTarget = normalizeSearchString(trans.text);
+    const normPhonetic = normalizeSearchString(trans.phonetic);
 
     // Tam veya kelime öbeği eşleşmesi kontrolü (Kısa hecelerde yanlış eşleşmeyi engelle)
     const isExact = normTr === clean || normId === clean || normTarget === clean || normPhonetic === clean;
@@ -729,12 +749,11 @@ export function searchComprehensiveDictionary(
     );
 
     if (isExact || isPhraseContained) {
-      matchedItems.push(item);
+      matchedItems.push({ item, trans });
     }
   }
 
-  return matchedItems.map(item => {
-    const trans = (item.translations as any)[targetLang] || item.translations.Japonca;
+  return matchedItems.map(({ item, trans }) => {
     return {
       target: trans.text,
       romaji: trans.phonetic,

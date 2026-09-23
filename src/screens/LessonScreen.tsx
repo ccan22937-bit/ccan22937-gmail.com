@@ -3,6 +3,7 @@ import { wordChallenges } from '../data/wordChallenges';
 import { Drill, WordData } from '../types';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { Button } from '../components/ui/Button';
+import { SenseiMascot } from '../components/SenseiMascot';
 import { playAudio } from '../utils/speech';
 import { Volume2, Check, X, AlertCircle, Snail } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -258,19 +259,19 @@ export function LessonScreen({ queue: initialQueue, onComplete, onExit, language
             {currentDrill.type === 'intro' && (
               <div className="flex flex-col">
                 <h2 className="text-2xl md:text-3xl font-extrabold text-gray-800 mb-6 text-left w-full mx-auto">{t(nativeLanguage, 'lesson_new_word')}</h2>
-                <div className="flex items-end gap-2 md:gap-4 mb-8 max-w-xl mx-auto w-full">
-                  <div className="text-[80px] md:text-[100px] drop-shadow-md z-10 leading-none">{characterEmoji}</div>
-                  <div className="relative bg-white border-2 border-b-4 border-gray-200 rounded-2xl shadow-sm p-4 md:p-6 flex-1 flex flex-col items-center justify-center min-h-[140px] mb-4">
+                <div className="flex items-end gap-3 md:gap-5 mb-8 max-w-xl mx-auto w-full">
+                  <SenseiMascot mood={isChecking ? (isCorrect ? 'celebrate' : 'crying') : 'speaking'} size="lg" className="mb-2 shrink-0" />
+                  <div className="relative bg-white border-2 border-b-4 border-gray-200 rounded-3xl shadow-sm p-5 md:p-7 flex-1 flex flex-col items-center justify-center min-h-[140px] mb-4">
                     <div className="absolute w-4 h-4 bg-white border-l-2 border-b-2 border-gray-200 -left-[9px] top-1/2 transform -translate-y-1/2 rotate-45"></div>
-                    <div className="text-5xl md:text-6xl font-extrabold text-gray-800 mb-2 text-center">{currentDrill.word.ja}</div>
-                    <div className="text-xl text-gray-500 mb-4 text-center">{currentDrill.word.romaji}</div>
-                    <div className="text-2xl font-bold text-[#1cb0f6] text-center">{getNativeWord(currentDrill.word.tr, nativeLanguage)}</div>
+                    <div className="text-5xl md:text-6xl font-black text-gray-800 mb-2 text-center tracking-tight">{currentDrill.word.ja}</div>
+                    <div className="text-xl font-medium text-gray-500 mb-4 text-center">{currentDrill.word.romaji}</div>
+                    <div className="text-2xl font-black text-[#58cc02] text-center">{getNativeWord(currentDrill.word.tr, nativeLanguage)}</div>
                     
                     <div className="flex justify-center gap-4 mt-6">
                       <Button 
                         variant="outline" 
                         size="lg" 
-                        className="rounded-full w-14 h-14 flex items-center justify-center p-0 border-[#1cb0f6] text-[#1cb0f6] hover:bg-[#1cb0f6]/10"
+                        className="rounded-full w-14 h-14 flex items-center justify-center p-0 border-[#58cc02] text-[#58cc02] hover:bg-emerald-50"
                         onClick={() => playAudio(currentDrill.word.ja, 0.8, false, langCode)}
                       >
                         <Volume2 size={24} fill="currentColor" />
@@ -278,7 +279,7 @@ export function LessonScreen({ queue: initialQueue, onComplete, onExit, language
                       <Button 
                         variant="outline" 
                         size="lg" 
-                        className="rounded-full w-14 h-14 flex items-center justify-center p-0 border-[#1cb0f6] text-[#1cb0f6] hover:bg-[#1cb0f6]/10"
+                        className="rounded-full w-14 h-14 flex items-center justify-center p-0 border-[#58cc02] text-[#58cc02] hover:bg-emerald-50"
                         onClick={() => playAudio(currentDrill.word.ja, 0.4, true, langCode)}
                       >
                         <Snail size={24} fill="currentColor" />
@@ -293,27 +294,27 @@ export function LessonScreen({ queue: initialQueue, onComplete, onExit, language
             {currentDrill.type === 'sentence' && (
               <div className="flex flex-col">
                 <h2 className="text-2xl md:text-3xl font-extrabold text-gray-800 mb-6 text-left w-full mx-auto">Cümle İçinde Gör</h2>
-                <div className="flex items-end gap-2 md:gap-4 mb-8 max-w-xl mx-auto w-full">
-                  <div className="text-[80px] md:text-[100px] drop-shadow-md z-10 leading-none">{characterEmoji}</div>
-                  <div className="relative bg-white border-2 border-b-4 border-gray-200 rounded-2xl shadow-sm p-4 md:p-6 flex-1 flex flex-col items-center justify-center min-h-[140px] mb-4">
+                <div className="flex items-end gap-3 md:gap-5 mb-8 max-w-xl mx-auto w-full">
+                  <SenseiMascot mood={isChecking ? (isCorrect ? 'celebrate' : 'crying') : 'speaking'} size="lg" className="mb-2 shrink-0" />
+                  <div className="relative bg-white border-2 border-b-4 border-gray-200 rounded-3xl shadow-sm p-5 md:p-7 flex-1 flex flex-col items-center justify-center min-h-[140px] mb-4">
                     <div className="absolute w-4 h-4 bg-white border-l-2 border-b-2 border-gray-200 -left-[9px] top-1/2 transform -translate-y-1/2 rotate-45"></div>
                     <div className="flex gap-4 mb-6">
                       <Button 
                         variant="outline" 
-                        className="rounded-full w-12 h-12 flex items-center justify-center p-0 text-[#1cb0f6] border-[#1cb0f6] bg-white hover:bg-[#1cb0f6]/10"
+                        className="rounded-full w-12 h-12 flex items-center justify-center p-0 text-[#58cc02] border-[#58cc02] bg-white hover:bg-emerald-50"
                         onClick={() => playAudio(currentDrill.word.ja, 0.8, false, langCode)}
                       >
                         <Volume2 size={24} fill="currentColor" />
                       </Button>
                       <Button 
                         variant="outline" 
-                        className="rounded-full w-12 h-12 flex items-center justify-center p-0 text-[#1cb0f6] border-[#1cb0f6] bg-white hover:bg-[#1cb0f6]/10"
+                        className="rounded-full w-12 h-12 flex items-center justify-center p-0 text-[#58cc02] border-[#58cc02] bg-white hover:bg-emerald-50"
                         onClick={() => playAudio(currentDrill.word.ja, 0.4, true, langCode)}
                       >
                         <Snail size={24} fill="currentColor" />
                       </Button>
                     </div>
-                    <div className="text-2xl font-bold text-gray-800 leading-tight text-center mb-2">
+                    <div className="text-2xl md:text-3xl font-bold text-gray-800 leading-tight text-center mb-2">
                       {currentDrill.word.sentenceJa}
                     </div>
                     <div className="text-lg font-medium text-gray-500 text-center">
@@ -335,8 +336,8 @@ export function LessonScreen({ queue: initialQueue, onComplete, onExit, language
                   {currentDrill.type === 'ja_write' && t(nativeLanguage, 'lesson_write_meaning', { target: language, native: nativeLanguage })}
                 </h2>
 
-                <div className="flex flex-row items-end gap-2 md:gap-4 mb-8 max-w-xl mx-auto w-full">
-                  <div className="text-[80px] md:text-[120px] drop-shadow-sm z-10 leading-none mb-2">{characterEmoji}</div>
+                <div className="flex flex-row items-end gap-3 md:gap-5 mb-8 max-w-xl mx-auto w-full">
+                  <SenseiMascot mood={isChecking ? (isCorrect ? 'celebrate' : 'crying') : 'speaking'} size="lg" className="mb-2 shrink-0" />
                   
                   {['tr_ja'].includes(currentDrill.type) && (
                     <div className="relative bg-white border-2 border-b-4 border-gray-200 rounded-2xl shadow-sm p-4 inline-flex flex-col items-center justify-center min-h-[60px] self-center">
@@ -348,26 +349,26 @@ export function LessonScreen({ queue: initialQueue, onComplete, onExit, language
                   )}
 
                   {['ja_tr', 'ja_write', 'audio', 'audio_write'].includes(currentDrill.type) && (
-                    <div className="relative bg-white border-2 border-b-4 border-gray-200 rounded-2xl shadow-sm p-4 inline-flex flex-col items-center justify-center self-center min-h-[60px]">
-                      <div className="absolute w-3 h-3 bg-white border-l-2 border-b-2 border-gray-200 -left-[7px] top-1/2 transform -translate-y-1/2 rotate-45"></div>
+                    <div className="relative bg-white border-2 border-b-4 border-gray-200 rounded-3xl shadow-sm p-3.5 sm:p-4 inline-flex flex-col items-center justify-center self-center min-h-[70px]">
+                      <div className="absolute w-3.5 h-3.5 bg-white border-l-2 border-b-2 border-gray-200 -left-[8px] top-1/2 transform -translate-y-1/2 rotate-45"></div>
                       <div className="flex flex-col items-center">
-                        <div className="flex gap-2 self-center items-center">
-                          <Button 
-                            variant="outline" 
-                            size="lg" 
-                            className="rounded-2xl w-16 h-16 flex items-center justify-center p-0 text-[#1cb0f6] border-[#1cb0f6] hover:bg-[#1cb0f6]/10 border-b-4 active:border-b-2 active:mt-0.5"
+                        <div className="flex gap-3 self-center items-center">
+                          <button 
+                            type="button"
+                            className="rounded-2xl w-16 h-16 sm:w-18 sm:h-18 flex items-center justify-center text-white bg-[#58cc02] hover:bg-[#46a302] border-b-4 border-[#3e8e02] active:border-b-0 active:translate-y-1 shadow-sm transition-all cursor-pointer"
                             onClick={() => playAudio(currentDrill.word.ja, 0.8, false, langCode)}
+                            title="Normal Hızda Dinle"
                           >
-                            <Volume2 size={32} fill="currentColor" />
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="lg" 
-                            className="rounded-2xl w-16 h-16 flex items-center justify-center p-0 text-[#1cb0f6] border-[#1cb0f6] hover:bg-[#1cb0f6]/10 border-b-4 active:border-b-2 active:mt-0.5"
+                            <Volume2 size={32} className="stroke-[2.5]" />
+                          </button>
+                          <button 
+                            type="button"
+                            className="rounded-2xl w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center text-white bg-[#58cc02] hover:bg-[#46a302] border-b-4 border-[#3e8e02] active:border-b-0 active:translate-y-1 shadow-sm transition-all cursor-pointer"
                             onClick={() => playAudio(currentDrill.word.ja, 0.4, true, langCode)}
-                           >
-                            <Snail size={32} fill="currentColor" />
-                          </Button>
+                            title="Yavaş Dinle"
+                          >
+                            <Snail size={28} className="stroke-[2.5]" />
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -386,7 +387,7 @@ export function LessonScreen({ queue: initialQueue, onComplete, onExit, language
                       "w-full px-6 py-4 text-2xl font-bold text-center border-2 border-b-4 rounded-xl focus:outline-none transition-all",
                       isChecking && isCorrect ? "bg-[#d7ffb8] border-[#58cc02] text-[#58cc02]" :
                       isChecking && !isCorrect ? "bg-[#ffdfe0] border-[#ea2b2b] text-[#ea2b2b]" :
-                      "bg-white border-gray-200 focus:border-[#1cb0f6] text-gray-800 placeholder:text-gray-400"
+                      "bg-white border-gray-200 focus:border-[#58cc02] text-gray-800 placeholder:text-gray-400"
                     )}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
@@ -403,7 +404,7 @@ export function LessonScreen({ queue: initialQueue, onComplete, onExit, language
                       let stateClass = "bg-white border-2 border-b-4 border-gray-200 text-gray-800 hover:bg-gray-50 active:border-b-2 active:mt-[2px]";
                       
                       if (isSelected && !isChecking) {
-                        stateClass = "bg-[#ddf4ff] border-[#1cb0f6] border-b-4 text-[#1cb0f6]";
+                        stateClass = "bg-emerald-50 border-[#58cc02] border-b-4 text-[#58cc02]";
                       } else if (isChecking && isSelected) {
                         stateClass = isCorrect 
                           ? "bg-[#d7ffb8] border-[#58cc02] border-b-4 text-[#58cc02] opacity-100" 
@@ -447,7 +448,7 @@ export function LessonScreen({ queue: initialQueue, onComplete, onExit, language
                       let stateClass = "bg-white border-2 border-b-4 border-gray-200 text-gray-800 hover:bg-gray-50 active:border-b-2 active:mt-[2px]";
                       
                       if (isSelected && !isChecking) {
-                        stateClass = "bg-[#ddf4ff] border-[#1cb0f6] border-b-4 text-[#1cb0f6]";
+                        stateClass = "bg-emerald-50 border-[#58cc02] border-b-4 text-[#58cc02]";
                       } else if (isChecking && isSelected) {
                         stateClass = isCorrect 
                           ? "bg-[#d7ffb8] border-[#58cc02] border-b-4 text-[#58cc02]" 
@@ -499,9 +500,9 @@ export function LessonScreen({ queue: initialQueue, onComplete, onExit, language
 
                 {currentDrill.type === 'duo_translate' && currentDrill.word && (
                   <div className="flex flex-col items-center w-full gap-6">
-                    <div className="flex items-end gap-2 md:gap-4 max-w-xl mx-auto w-full">
-                      <div className="text-[80px] md:text-[120px] drop-shadow-sm z-10 leading-none mb-2">{characterEmoji}</div>
-                      <div className="relative bg-white border-2 border-b-4 border-gray-200 rounded-2xl shadow-sm p-4 inline-flex flex-col items-center justify-center min-h-[60px] self-center">
+                    <div className="flex items-end gap-3 md:gap-5 max-w-xl mx-auto w-full">
+                      <SenseiMascot mood={isChecking ? (isCorrect ? 'celebrate' : 'crying') : 'speaking'} size="lg" className="mb-2 shrink-0" />
+                      <div className="relative bg-white border-2 border-b-4 border-gray-200 rounded-3xl shadow-sm p-4 inline-flex flex-col items-center justify-center min-h-[60px] self-center">
                         <div className="absolute w-3 h-3 bg-white border-l-2 border-b-2 border-gray-200 -left-[7px] top-1/2 transform -translate-y-1/2 rotate-45"></div>
                         
                         <div className="flex flex-col items-center">
@@ -509,7 +510,7 @@ export function LessonScreen({ queue: initialQueue, onComplete, onExit, language
                             <Button 
                               variant="outline" 
                               size="lg" 
-                              className="rounded-2xl w-16 h-16 flex items-center justify-center p-0 text-[#1cb0f6] border-[#1cb0f6] hover:bg-[#1cb0f6]/10 border-b-4 active:border-b-2 active:mt-0.5"
+                              className="rounded-2xl w-16 h-16 flex items-center justify-center p-0 text-[#58cc02] border-[#58cc02] hover:bg-emerald-50 border-b-4 active:border-b-2 active:mt-0.5"
                               onClick={() => playAudio(currentDrill.word!.fullSentenceJa || currentDrill.word!.ja, 0.8, false, langCode)}
                             >
                               <Volume2 size={32} fill="currentColor" />
@@ -517,7 +518,7 @@ export function LessonScreen({ queue: initialQueue, onComplete, onExit, language
                             <Button 
                               variant="outline" 
                               size="lg" 
-                              className="rounded-2xl w-16 h-16 flex items-center justify-center p-0 text-[#1cb0f6] border-[#1cb0f6] hover:bg-[#1cb0f6]/10 border-b-4 active:border-b-2 active:mt-0.5"
+                              className="rounded-2xl w-16 h-16 flex items-center justify-center p-0 text-[#58cc02] border-[#58cc02] hover:bg-emerald-50 border-b-4 active:border-b-2 active:mt-0.5"
                               onClick={() => playAudio(currentDrill.word!.fullSentenceJa || currentDrill.word!.ja, 0.4, true, langCode)}
                             >
                               <Snail size={32} fill="currentColor" />
@@ -562,16 +563,16 @@ export function LessonScreen({ queue: initialQueue, onComplete, onExit, language
 
                 {currentDrill.type === 'duo_listen' && currentDrill.word && (
                   <div className="flex flex-col items-center w-full gap-6">
-                    <div className="flex items-end gap-2 md:gap-4 max-w-xl mx-auto w-full">
-                      <div className="text-[80px] md:text-[120px] drop-shadow-sm z-10 leading-none mb-2">{characterEmoji}</div>
+                    <div className="flex items-end gap-3 md:gap-5 max-w-xl mx-auto w-full">
+                      <SenseiMascot mood={isChecking ? (isCorrect ? 'celebrate' : 'crying') : 'speaking'} size="lg" className="mb-2 shrink-0" />
                       
-                      <div className="relative bg-white border-2 border-b-4 border-gray-200 rounded-2xl shadow-sm p-4 inline-flex flex-col items-center justify-center self-center min-h-[60px]">
+                      <div className="relative bg-white border-2 border-b-4 border-gray-200 rounded-3xl shadow-sm p-4 inline-flex flex-col items-center justify-center self-center min-h-[60px]">
                         <div className="absolute w-3 h-3 bg-white border-l-2 border-b-2 border-gray-200 -left-[7px] top-1/2 transform -translate-y-1/2 rotate-45"></div>
                         <div className="flex gap-4 self-center items-center px-2 py-2">
                           <Button 
                             variant="primary" 
                             size="lg" 
-                            className="rounded-2xl w-20 h-20 md:w-24 md:h-24 flex items-center justify-center p-0 shadow-[0_4px_0_0_#1899d6]"
+                            className="rounded-2xl w-20 h-20 md:w-24 md:h-24 flex items-center justify-center p-0"
                             onClick={() => playAudio(currentDrill.word!.ja, 0.8, false, langCode)}
                           >
                             <Volume2 size={40} fill="currentColor" />
@@ -579,7 +580,7 @@ export function LessonScreen({ queue: initialQueue, onComplete, onExit, language
                           <Button 
                             variant="primary" 
                             size="lg" 
-                            className="rounded-2xl w-14 h-14 md:w-16 md:h-16 flex items-center justify-center p-0 shadow-[0_4px_0_0_#1899d6]"
+                            className="rounded-2xl w-14 h-14 md:w-16 md:h-16 flex items-center justify-center p-0"
                             onClick={() => playAudio(currentDrill.word!.ja, 0.4, true, langCode)}
                            >
                             <Snail size={28} fill="currentColor" />
@@ -598,7 +599,7 @@ export function LessonScreen({ queue: initialQueue, onComplete, onExit, language
                         "w-full px-6 py-4 text-xl md:text-2xl font-bold text-center border-2 border-b-4 rounded-2xl focus:outline-none transition-all placeholder:font-normal placeholder:text-gray-400",
                         isChecking && isCorrect ? "bg-[#d7ffb8] border-[#58cc02] text-[#58cc02]" :
                         isChecking && !isCorrect ? "bg-[#ffdfe0] border-[#ea2b2b] text-[#ea2b2b]" :
-                        "bg-white border-gray-200 focus:border-[#1cb0f6] text-gray-800"
+                        "bg-white border-gray-200 focus:border-[#58cc02] text-gray-800"
                       )}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
@@ -627,7 +628,7 @@ export function LessonScreen({ queue: initialQueue, onComplete, onExit, language
                              className={cn(
                                "px-4 py-3 rounded-2xl border-2 font-bold text-lg text-center transition-all min-h-[70px] flex flex-col items-center justify-center shadow-sm",
                                isMatched ? "bg-gray-100 border-gray-200 text-gray-300 shadow-none opacity-50" :
-                               isSelected ? "bg-[#ddf4ff] border-[#1cb0f6] border-b-4 text-[#1cb0f6] active:border-b-2 active:mt-[2px]" :
+                               isSelected ? "bg-emerald-50 border-[#58cc02] border-b-4 text-[#58cc02] active:border-b-2 active:mt-[2px]" :
                                "bg-white border-b-4 border-gray-200 text-gray-800 hover:bg-gray-50 active:border-b-2 active:mt-[2px]"
                              )}
                            >
@@ -649,7 +650,7 @@ export function LessonScreen({ queue: initialQueue, onComplete, onExit, language
                              className={cn(
                                "px-4 py-3 rounded-2xl border-2 font-bold text-lg text-center transition-all min-h-[70px] flex items-center justify-center shadow-sm",
                                isMatched ? "bg-gray-100 border-gray-200 text-gray-300 shadow-none opacity-50" :
-                               isSelected ? "bg-[#ddf4ff] border-[#1cb0f6] border-b-4 text-[#1cb0f6] active:border-b-2 active:mt-[2px]" :
+                               isSelected ? "bg-emerald-50 border-[#58cc02] border-b-4 text-[#58cc02] active:border-b-2 active:mt-[2px]" :
                                "bg-white border-b-4 border-gray-200 text-gray-800 hover:bg-gray-50 active:border-b-2 active:mt-[2px]"
                              )}
                            >
@@ -676,19 +677,26 @@ export function LessonScreen({ queue: initialQueue, onComplete, onExit, language
           
           <div className="flex-1 flex w-full">
             {isChecking && (
-              <div className="flex flex-col shrink-0 flex-1">
-                <div className={cn("text-2xl font-extrabold flex items-center gap-3", isCorrect ? "text-[#58cc02]" : "text-[#ea2b2b]")}>
-                  <div className={cn("w-10 h-10 rounded-full flex items-center justify-center text-white", isCorrect ? "bg-[#58cc02]" : "bg-[#ea2b2b]")}>
-                    {isCorrect ? <Check size={28} strokeWidth={4} /> : <X size={28} strokeWidth={4} />}
+              <div className="flex items-center gap-4 shrink-0 flex-1">
+                <SenseiMascot 
+                  mood={isCorrect ? 'celebrate' : 'crying'} 
+                  size="sm"
+                  className="shrink-0"
+                />
+                <div className="flex flex-col flex-1">
+                  <div className={cn("text-xl sm:text-2xl font-black flex items-center gap-2 sm:gap-3", isCorrect ? "text-[#58cc02]" : "text-[#ea2b2b]")}>
+                    <div className={cn("w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-white shrink-0", isCorrect ? "bg-[#58cc02]" : "bg-[#ea2b2b]")}>
+                      {isCorrect ? <Check size={22} strokeWidth={4} /> : <X size={22} strokeWidth={4} />}
+                    </div>
+                    {isCorrect ? t(nativeLanguage, 'lesson_great') : t(nativeLanguage, 'lesson_watch_out')}
                   </div>
-                  {isCorrect ? t(nativeLanguage, 'lesson_great') : t(nativeLanguage, 'lesson_watch_out')}
+                  {!isCorrect && (
+                    <div className="text-[#ea2b2b] font-medium text-sm sm:text-base mt-1.5 flex flex-col">
+                      <span className="text-red-900 font-bold mb-0.5">{t(nativeLanguage, 'lesson_correct_answer')}</span>
+                      <span className="font-bold text-gray-900 bg-white/80 px-2.5 py-1 rounded-lg border border-red-200 inline-block w-fit">{currentDrill.correctAnswer || currentDrill.word?.ja}</span>
+                    </div>
+                  )}
                 </div>
-                {!isCorrect && (
-                  <div className="text-[#ea2b2b] font-medium text-lg mt-2 flex flex-col">
-                    <span className="text-red-900 font-bold mb-1">{t(nativeLanguage, 'lesson_correct_answer')}</span>
-                    <span>{currentDrill.correctAnswer}</span>
-                  </div>
-                )}
               </div>
             )}
           </div>

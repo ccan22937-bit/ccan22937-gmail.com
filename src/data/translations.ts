@@ -10,7 +10,7 @@ export type TranslationKey =
   | 'pre_test_title' | 'pre_test_subtitle' | 'pre_start_test'
   | 'lesson_write_meaning' | 'lesson_write_placeholder' | 'pre_test_instruction'
   | 'lesson_choose_translation' | 'lesson_tap_what_you_hear' | 'lesson_type_what_you_hear'
-  | 'lesson_translate_sentence' | 'lesson_tap_matching_pairs' | 'lesson_new_word' | 'lesson_correct_answer' | 'summary_subtitle' | 'summary_test_subtitle' | 'lang_setup_not_found' | 'msg_preparing' | 'msg_error_preparing' | 'lesson_great' | 'lesson_watch_out' | 'lesson_remaining_hearts' | 'profile_user' | 'profile_joined' | 'lang_setup_custom_divider' | 'summary_day_completed' | 'summary_stars_earned' | 'summary_hearts_earned' | 'modal_cancel' | 'modal_unlock' | 'login_terms_intro' | 'login_term_1_title' | 'login_term_1_desc' | 'login_term_2_title' | 'login_term_2_desc' | 'login_term_3_title' | 'login_term_3_desc' | 'login_term_4_title' | 'login_term_4_desc' | 'login_why_terms_title' | 'login_why_terms_desc' | 'login_accept_terms' | 'login_btn' | 'msg_logout' | 'msg_attention' | 'msg_daily_limit' | 'msg_max_hearts' | 'login_welcome' | 'pre_lesson_title' | 'pre_lesson_subtitle' | 'pre_lesson_word_placeholder' | 'pre_lesson_preparing' | 'pre_lesson_start' | 'pre_lesson_header' | 'msg_no_hearts' | 'msg_daily_limit' | 'trial_days_remaining' | 'sub_title' | 'sub_monthly' | 'sub_price' | 'sub_per_month' | 'sub_buy' | 'sub_wait' | 'chest_title' | 'chest_desc' | 'locked_level_title' | 'unlock_for' | 'not_enough_stars' | 'store' | 'login_slogan_1' | 'login_slogan_2';
+  | 'lesson_translate_sentence' | 'lesson_tap_matching_pairs' | 'lesson_new_word' | 'lesson_correct_answer' | 'summary_subtitle' | 'summary_test_subtitle' | 'lang_setup_not_found' | 'msg_preparing' | 'msg_error_preparing' | 'lesson_great' | 'lesson_watch_out' | 'lesson_remaining_hearts' | 'profile_user' | 'profile_joined' | 'lang_setup_custom_divider' | 'summary_day_completed' | 'summary_test_completed' | 'summary_stars_earned' | 'summary_hearts_earned' | 'modal_cancel' | 'modal_unlock' | 'login_terms_intro' | 'login_term_1_title' | 'login_term_1_desc' | 'login_term_2_title' | 'login_term_2_desc' | 'login_term_3_title' | 'login_term_3_desc' | 'login_term_4_title' | 'login_term_4_desc' | 'login_why_terms_title' | 'login_why_terms_desc' | 'login_accept_terms' | 'login_btn' | 'msg_logout' | 'msg_attention' | 'msg_daily_limit' | 'msg_max_hearts' | 'login_welcome' | 'pre_lesson_title' | 'pre_lesson_subtitle' | 'pre_lesson_word_placeholder' | 'pre_lesson_preparing' | 'pre_lesson_start' | 'pre_lesson_header' | 'msg_no_hearts' | 'msg_daily_limit' | 'trial_days_remaining' | 'sub_title' | 'sub_desc' | 'sub_plan_title' | 'sub_feat_1' | 'sub_feat_2' | 'sub_feat_3' | 'sub_monthly' | 'sub_price' | 'sub_per_month' | 'sub_instant_secure' | 'sub_start_now' | 'sub_different_account_prompt' | 'sub_switch_account_btn' | 'sub_buy' | 'sub_wait' | 'chest_title' | 'chest_desc' | 'locked_level_title' | 'unlock_for' | 'not_enough_stars' | 'store' | 'login_slogan_1' | 'login_slogan_2';
 
 export const translations: Record<string, Partial<Record<TranslationKey, string>>> = {
   'Türkçe': {
@@ -39,7 +39,7 @@ export const translations: Record<string, Partial<Record<TranslationKey, string>
     alphabet_modal_tab_characters: "KARAKTERLER",
     alphabet_modal_tab_word: "KELİME YAP",
     store_title: "KALP MAĞAZASI",
-    store_price: "Fiyat: 3 ⭐ = 1 ❤️",
+    store_price: "Fiyat: 5 ⭐ = 1 ❤️",
     store_buy: "Kalp Al",
     store_close: "Kapat",
     lang_setup_native: "Ana diliniz nedir?",
@@ -47,10 +47,10 @@ export const translations: Record<string, Partial<Record<TranslationKey, string>
     lang_setup_search: "Dil ara...",
     lang_setup_custom_placeholder: "Veya kendi dilinizi yazın...",
     lang_setup_custom_button: "Seç",
-    msg_not_enough_stars: "Yetersiz Yıldız! Kilit açmak için {cost} ⭐ gerekli.",
+    msg_not_enough_stars: "Yetersiz Yıldız! 1 Can almak için {cost} ⭐ gerekli.",
     msg_out_of_hearts: "Canınız Bitti! Mağazaya gidin.",
     msg_level_locked: "Bu seviye henüz kilitli!",
-    msg_correct: "Tebrikler! Dersi geçtiniz. 🎁 Ödül: +5 ⭐ Yıldız kazandınız!"
+    msg_correct: "Tebrikler! Dersi geçtiniz. 🎁 Ödül: +1 ⭐ Yıldız kazandınız!"
   },
   'İngilizce': {
     app_title: "ROADMAP",
@@ -80,7 +80,7 @@ export const translations: Record<string, Partial<Record<TranslationKey, string>
 
     alphabet_modal_tab_word: "MAKE WORD",
     store_title: "HEART STORE",
-    store_price: "Price: 3 ⭐ = 1 ❤️",
+    store_price: "Price: 5 ⭐ = 1 ❤️",
     store_buy: "Buy Heart",
     store_close: "Close",
     lang_setup_native: "What is your native language?",
@@ -88,10 +88,10 @@ export const translations: Record<string, Partial<Record<TranslationKey, string>
     lang_setup_search: "Search language...",
     lang_setup_custom_placeholder: "Or type your own language...",
     lang_setup_custom_button: "Select",
-    msg_not_enough_stars: "Not enough stars! You need {cost} ⭐ to unlock.",
+    msg_not_enough_stars: "Not enough stars! You need {cost} ⭐ to get a heart.",
     msg_out_of_hearts: "Out of lives! Go to the store.",
     msg_level_locked: "This level is still locked!",
-    msg_correct: "Congratulations! You passed the lesson. 🎁 Reward: +5 ⭐ Stars!"
+    msg_correct: "Congratulations! You passed the lesson. 🎁 Reward: +1 ⭐ Star!"
   },
   'Almanca': {
     app_title: "LERNPFAD",
@@ -849,15 +849,15 @@ Object.assign(translations['Japonca'] = translations['Japonca'] || {}, { lang_se
 Object.assign(translations['Rusça'] = translations['Rusça'] || {}, { lang_setup_custom_divider: 'или введите свой язык, которого нет в списке' });
 
 
-Object.assign(translations['Türkçe'] = translations['Türkçe'] || {}, { summary_day_completed: 'Tebrikler! {day}. Gün Başarıyla Tamamlandı! 🎉', summary_stars_earned: '+{starsEarned} Yıldız Kazandın!', summary_hearts_earned: '+{heartsEarned} Kalp Kazandın!' });
-Object.assign(translations['İngilizce'] = translations['İngilizce'] || {}, { summary_day_completed: 'Congratulations! Day {day} Successfully Completed! 🎉', summary_stars_earned: '+{starsEarned} Stars Earned!', summary_hearts_earned: '+{heartsEarned} Hearts Earned!' });
-Object.assign(translations['Almanca'] = translations['Almanca'] || {}, { summary_day_completed: 'Herzlichen Glückwunsch! Tag {day} erfolgreich abgeschlossen! 🎉', summary_stars_earned: '+{starsEarned} Sterne verdient!', summary_hearts_earned: '+{heartsEarned} Herzen verdient!' });
-Object.assign(translations['Fransızca'] = translations['Fransızca'] || {}, { summary_day_completed: 'Félicitations ! Jour {day} terminé avec succès ! 🎉', summary_stars_earned: '+{starsEarned} étoiles gagnées !', summary_hearts_earned: '+{heartsEarned} cœurs gagnés !' });
-Object.assign(translations['İspanyolca'] = translations['İspanyolca'] || {}, { summary_day_completed: '¡Felicidades! ¡Día {day} completado con éxito! 🎉', summary_stars_earned: '¡+{starsEarned} estrellas ganadas!', summary_hearts_earned: '¡+{heartsEarned} corazones ganados!' });
-Object.assign(translations['Arapça'] = translations['Arapça'] || {}, { summary_day_completed: 'تهانينا! اكتمل اليوم {day} بنجاح! 🎉', summary_stars_earned: 'كسبت +{starsEarned} نجوم!', summary_hearts_earned: 'كسبت +{heartsEarned} قلوب!' });
-Object.assign(translations['Çince'] = translations['Çince'] || {}, { summary_day_completed: '恭喜！第 {day} 天成功完成！ 🎉', summary_stars_earned: '获得 +{starsEarned} 颗星星！', summary_hearts_earned: '获得 +{heartsEarned} 颗爱心！' });
-Object.assign(translations['Japonca'] = translations['Japonca'] || {}, { summary_day_completed: 'おめでとう！{day}日目が無事に完了しました！ 🎉', summary_stars_earned: '+{starsEarned} スター獲得！', summary_hearts_earned: '+{heartsEarned} ハート獲得！' });
-Object.assign(translations['Rusça'] = translations['Rusça'] || {}, { summary_day_completed: 'Поздравляем! День {day} успешно завершен! 🎉', summary_stars_earned: 'Заработано +{starsEarned} звезд!', summary_hearts_earned: 'Заработано +{heartsEarned} сердец!' });
+Object.assign(translations['Türkçe'] = translations['Türkçe'] || {}, { summary_day_completed: 'Tebrikler! {day}. Gün Başarıyla Tamamlandı! 🎉', summary_test_completed: 'Tebrikler! Test Başarıyla Tamamlandı! 🎉', summary_stars_earned: '+{starsEarned} Yıldız Kazandın!', summary_hearts_earned: '+{heartsEarned} Kalp Kazandın!' });
+Object.assign(translations['İngilizce'] = translations['İngilizce'] || {}, { summary_day_completed: 'Congratulations! Day {day} Successfully Completed! 🎉', summary_test_completed: 'Congratulations! Test Successfully Completed! 🎉', summary_stars_earned: '+{starsEarned} Stars Earned!', summary_hearts_earned: '+{heartsEarned} Hearts Earned!' });
+Object.assign(translations['Almanca'] = translations['Almanca'] || {}, { summary_day_completed: 'Herzlichen Glückwunsch! Tag {day} erfolgreich abgeschlossen! 🎉', summary_test_completed: 'Herzlichen Glückwunsch! Test erfolgreich abgeschlossen! 🎉', summary_stars_earned: '+{starsEarned} Sterne verdient!', summary_hearts_earned: '+{heartsEarned} Herzen verdient!' });
+Object.assign(translations['Fransızca'] = translations['Fransızca'] || {}, { summary_day_completed: 'Félicitations ! Jour {day} terminé avec succès ! 🎉', summary_test_completed: 'Félicitations ! Test terminé avec succès ! 🎉', summary_stars_earned: '+{starsEarned} étoiles gagnées !', summary_hearts_earned: '+{heartsEarned} cœurs gagnés !' });
+Object.assign(translations['İspanyolca'] = translations['İspanyolca'] || {}, { summary_day_completed: '¡Felicidades! ¡Día {day} completado con éxito! 🎉', summary_test_completed: '¡Felicidades! ¡Prueba completada con éxito! 🎉', summary_stars_earned: '¡+{starsEarned} estrellas ganadas!', summary_hearts_earned: '¡+{heartsEarned} corazones ganados!' });
+Object.assign(translations['Arapça'] = translations['Arapça'] || {}, { summary_day_completed: 'تهانينا! اكتمل اليوم {day} بنجاح! 🎉', summary_test_completed: 'تهانينا! اكتمل الاختبار بنجاح! 🎉', summary_stars_earned: 'كسبت +{starsEarned} نجوم!', summary_hearts_earned: 'كسبت +{heartsEarned} قلوب!' });
+Object.assign(translations['Çince'] = translations['Çince'] || {}, { summary_day_completed: '恭喜！第 {day} 天成功完成！ 🎉', summary_test_completed: '恭喜！测试成功完成！ 🎉', summary_stars_earned: '获得 +{starsEarned} 颗星星！', summary_hearts_earned: '获得 +{heartsEarned} 颗爱心！' });
+Object.assign(translations['Japonca'] = translations['Japonca'] || {}, { summary_day_completed: 'おめでとう！{day}日目が無事に完了しました！ 🎉', summary_test_completed: 'おめでとう！テストが無事に完了しました！ 🎉', summary_stars_earned: '+{starsEarned} スター獲得！', summary_hearts_earned: '+{heartsEarned} ハート獲得！' });
+Object.assign(translations['Rusça'] = translations['Rusça'] || {}, { summary_day_completed: 'Поздравляем! День {day} успешно завершен! 🎉', summary_test_completed: 'Поздравляем! Тест успешно завершен! 🎉', summary_stars_earned: 'Заработано +{starsEarned} звезд!', summary_hearts_earned: 'Заработано +{heartsEarned} сердец!' });
 
 
 Object.assign(translations['Türkçe'] = translations['Türkçe'] || {}, { modal_cancel: 'İptal', modal_unlock: 'Aç ({cost})' });
@@ -1065,10 +1065,19 @@ Object.assign(translations['Türkçe'] = translations['Türkçe'] || {}, {
   msg_no_hearts: "Canınız Bitti! Mağazaya gidin.",
   msg_daily_limit: "Günlük 3 ders hakkınızı doldurdunuz. Yarın tekrar gelin!",
   trial_days_remaining: "{days} Gün Deneme",
-  sub_title: "Deneme Süreniz Doldu, Devam Etmek İçin Abone Olun",
+  sub_title: "Deneme Süreniz Doldu",
+  sub_desc: "Kendi seçtiğin kelimeleri yazarak öğrenmeye devam etmek ve 365 günlük dil haritası ile sesli telaffuz koçuna sınırsız erişmek için üyeliğinizi başlatın.",
+  sub_plan_title: "Premium Üyelik (Aylık)",
+  sub_feat_1: "Kendi Kelimelerinle 365 Günlük Dil Haritası",
+  sub_feat_2: "Sensei Sesli Telaffuz & Konuşma Koçu",
+  sub_feat_3: "11 Hedef Dilde Sınırsız Kelime & Pratik",
   sub_monthly: "Aylık Plan",
-  sub_price: "300₺",
+  sub_price: "300 ₺ / Ay",
   sub_per_month: "/ay",
+  sub_instant_secure: "Güvenli ödeme altyapısı ile anında aktivasyon.",
+  sub_start_now: "HEMEN BAŞLA",
+  sub_different_account_prompt: "Farklı veya VIP/ücretli bir Google hesabınız mı var?",
+  sub_switch_account_btn: "Farklı Google Hesabıyla Giriş Yap (Hesap Değiştir)",
   sub_buy: "Satın Al",
   sub_wait: "İşleniyor..."
 });
@@ -1084,9 +1093,18 @@ Object.assign(translations['İngilizce'] = translations['İngilizce'] || {}, {
   msg_daily_limit: "You have reached your daily limit of 3 lessons. Come back tomorrow!",
   trial_days_remaining: "{days} Days Trial",
   sub_title: "Your Trial Has Ended",
+  sub_desc: "Start your subscription to continue learning by writing your own chosen words with full access to the 365-day map and voice coach.",
+  sub_plan_title: "Premium Membership (Monthly)",
+  sub_feat_1: "365-Day Map Powered by Your Own Words",
+  sub_feat_2: "Sensei Voice Pronunciation & Speaking Coach",
+  sub_feat_3: "Unlimited Practice in 11 Target Languages",
   sub_monthly: "Monthly Plan",
-  sub_price: "$9.99",
+  sub_price: "300 ₺ / Month",
   sub_per_month: "/mo",
+  sub_instant_secure: "Instant activation with secure payment infrastructure.",
+  sub_start_now: "START NOW",
+  sub_different_account_prompt: "Have a different or VIP/paid Google account?",
+  sub_switch_account_btn: "Sign In with Another Google Account",
   sub_buy: "Subscribe",
   sub_wait: "Processing..."
 });
@@ -1102,9 +1120,18 @@ Object.assign(translations['Almanca'] = translations['Almanca'] || {}, {
   msg_daily_limit: "Du hast dein tägliches Limit von 3 Lektionen erreicht. Komm morgen wieder!",
   trial_days_remaining: "{days} Tage Test",
   sub_title: "Ihre Testversion ist abgelaufen",
+  sub_desc: "Abonnieren Sie, um mit Ihren eigenen gewählten Wörtern weiterzulernen und unbegrenzten Zugriff auf die 365-Tage-Karte zu erhalten.",
+  sub_plan_title: "Premium-Mitgliedschaft (Monatlich)",
+  sub_feat_1: "365-Tage Karte mit deinen eigenen Wörtern",
+  sub_feat_2: "Sensei Sprach- & Aussprache-Coach",
+  sub_feat_3: "Unbegrenzte Praxis in 11 Sprachen",
   sub_monthly: "Monatsplan",
-  sub_price: "9,99€",
+  sub_price: "300 ₺ / Monat",
   sub_per_month: "/Mo",
+  sub_instant_secure: "Sofortige Freischaltung mit sicherer Zahlung.",
+  sub_start_now: "JETZT STARTEN",
+  sub_different_account_prompt: "Haben Sie ein anderes Google-Konto?",
+  sub_switch_account_btn: "Mit anderem Google-Konto anmelden",
   sub_buy: "Abonnieren",
   sub_wait: "Verarbeitung..."
 });
@@ -1119,10 +1146,19 @@ Object.assign(translations['Fransızca'] = translations['Fransızca'] || {}, {
   msg_no_hearts: "Plus de cœurs ! Allez à la boutique.",
   msg_daily_limit: "Vous avez atteint votre limite quotidienne de 3 leçons. Revenez demain !",
   trial_days_remaining: "{days} Jours d'essai",
-  sub_title: "Votre essai est terminé",
+  sub_title: "Votre période d'essai est terminée",
+  sub_desc: "Abonnez-vous pour continuer à apprendre en écrivant vos propres mots avec un accès illimité à la carte des 365 jours.",
+  sub_plan_title: "Abonnement Premium (Mensuel)",
+  sub_feat_1: "Carte de 365 jours avec vos propres mots",
+  sub_feat_2: "Sensei Coach vocal et de prononciation",
+  sub_feat_3: "Pratique illimitée en 11 langues",
   sub_monthly: "Forfait mensuel",
-  sub_price: "9,99€",
+  sub_price: "300 ₺ / Mois",
   sub_per_month: "/mois",
+  sub_instant_secure: "Activation instantanée par paiement sécurisé.",
+  sub_start_now: "COMMENCER",
+  sub_different_account_prompt: "Avez-vous un autre compte Google ?",
+  sub_switch_account_btn: "Se connecter avec un autre compte",
   sub_buy: "S'abonner",
   sub_wait: "Traitement..."
 });
@@ -1137,10 +1173,19 @@ Object.assign(translations['İspanyolca'] = translations['İspanyolca'] || {}, {
   msg_no_hearts: "¡Sin corazones! Ve a la tienda.",
   msg_daily_limit: "Has alcanzado tu límite diario de 3 lecciones. ¡Vuelve mañana!",
   trial_days_remaining: "{days} Días de prueba",
-  sub_title: "Tu prueba ha finalizado",
+  sub_title: "Tu periodo de prueba ha finalizado",
+  sub_desc: "Suscríbete para seguir aprendiendo escribiendo tus propias palabras con acceso ilimitado al mapa de 365 días.",
+  sub_plan_title: "Membresía Premium (Mensual)",
+  sub_feat_1: "Mapa de 365 días con tus propias palabras",
+  sub_feat_2: "Sensei Coach de pronunciación y voz",
+  sub_feat_3: "Práctica ilimitada en 11 idiomas",
   sub_monthly: "Plan mensual",
-  sub_price: "9,99€",
+  sub_price: "300 ₺ / Mes",
   sub_per_month: "/mes",
+  sub_instant_secure: "Activación inmediata con pago seguro.",
+  sub_start_now: "EMPEZAR AHORA",
+  sub_different_account_prompt: "¿Tienes otra cuenta de Google?",
+  sub_switch_account_btn: "Iniciar sesión con otra cuenta",
   sub_buy: "Suscribirse",
   sub_wait: "Procesando..."
 });
@@ -1156,9 +1201,18 @@ Object.assign(translations['Arapça'] = translations['Arapça'] || {}, {
   msg_daily_limit: "لقد وصلت إلى الحد اليومي البالغ 3 دروس. عد غدًا!",
   trial_days_remaining: "{days} أيام تجريبية",
   sub_title: "انتهت الفترة التجريبية الخاصة بك",
+  sub_desc: "ابدأ اشتراكك لمواصلة التعلم بكتابة كلماتك الخاصة والوصول غير المحدود لخريطة الـ 365 يومًا ومدرب النطق الصوتي.",
+  sub_plan_title: "عضوية بريميوم (شهرية)",
+  sub_feat_1: "خريطة الـ 365 يومًا بكلماتك الخاصة",
+  sub_feat_2: "مدرب سينسي للنطق الصوتي والمحادثة",
+  sub_feat_3: "ممارسة غير محدودة بـ 11 لغة مختلفة",
   sub_monthly: "الخطة الشهرية",
-  sub_price: "$9.99",
+  sub_price: "300 ₺ / شهرياً",
   sub_per_month: "/شهر",
+  sub_instant_secure: "تفعيل فوري مع بنية تحتية آمنة للدفع.",
+  sub_start_now: "ابدأ الآن",
+  sub_different_account_prompt: "هل لديك حساب Google مختلف أو مدفوع؟",
+  sub_switch_account_btn: "تسجيل الدخول بحساب Google آخر",
   sub_buy: "إشتراك",
   sub_wait: "يعالج..."
 });
@@ -1174,9 +1228,18 @@ Object.assign(translations['Çince'] = translations['Çince'] || {}, {
   msg_daily_limit: "您已达到每日3节课的限制。明天再来吧！",
   trial_days_remaining: "{days}天试用",
   sub_title: "您的试用期已结束",
+  sub_desc: "开始订阅，继续通过书写您自选的词汇来学习，并获得365天地图和AI语音教练的无限访问权限。",
+  sub_plan_title: "高级会员（按月）",
+  sub_feat_1: "用自选词汇打造的365天学习地图",
+  sub_feat_2: "Sensei 语音发音与口语教练",
+  sub_feat_3: "11种目标语言无限畅学",
   sub_monthly: "月度计划",
-  sub_price: "$9.99",
+  sub_price: "300 ₺ / 月",
   sub_per_month: "/月",
+  sub_instant_secure: "安全支付，即时激活。",
+  sub_start_now: "立即开始",
+  sub_different_account_prompt: "拥有其他 Google 账号？",
+  sub_switch_account_btn: "使用其他 Google 账号登录",
   sub_buy: "订阅",
   sub_wait: "处理中..."
 });
@@ -1192,9 +1255,18 @@ Object.assign(translations['Japonca'] = translations['Japonca'] || {}, {
   msg_daily_limit: "1日のレッスン制限（3回）に達しました。明日また来てください！",
   trial_days_remaining: "{days}日間お試し",
   sub_title: "トライアル期間が終了しました",
+  sub_desc: "自分で選んだ単語を書いて学び続けるために購読を開始し、365日マップと音声コーチに無制限にアクセスしましょう。",
+  sub_plan_title: "プレミアム会員（月額）",
+  sub_feat_1: "自分で選ぶ単語で作る365日言語マップ",
+  sub_feat_2: "Sensei 音声発音＆スピーキングコーチ",
+  sub_feat_3: "11言語で無制限の練習",
   sub_monthly: "月額プラン",
-  sub_price: "$9.99",
+  sub_price: "300 ₺ / 月",
   sub_per_month: "/月",
+  sub_instant_secure: "安全な決済で即時有効化。",
+  sub_start_now: "今すぐ開始",
+  sub_different_account_prompt: "別のGoogleアカウントをお持ちですか？",
+  sub_switch_account_btn: "別のGoogleアカウントでログイン",
   sub_buy: "購読する",
   sub_wait: "処理中..."
 });
@@ -1210,9 +1282,18 @@ Object.assign(translations['Rusça'] = translations['Rusça'] || {}, {
   msg_daily_limit: "Вы исчерпали дневной лимит в 3 урока. Возвращайтесь завтра!",
   trial_days_remaining: "{days} дней пробного периода",
   sub_title: "Ваш пробный период истек",
+  sub_desc: "Оформите подписку, чтобы продолжить учиться, вводя собственные слова, с полным доступом к 365-дневной карте и голосовому коучу.",
+  sub_plan_title: "Премиум подписка (Месячная)",
+  sub_feat_1: "365-дневная карта на основе ваших собственных слов",
+  sub_feat_2: "Sensei Голосовой коуч произношения",
+  sub_feat_3: "Неограниченная практика на 11 языках",
   sub_monthly: "Месячный план",
-  sub_price: "$9.99",
+  sub_price: "300 ₺ / Месяц",
   sub_per_month: "/мес",
+  sub_instant_secure: "Мгновенная активация с безопасной оплатой.",
+  sub_start_now: "НАЧАТЬ СEЙЧАС",
+  sub_different_account_prompt: "Есть другой аккаунт Google?",
+  sub_switch_account_btn: "Войти с другим аккаунтом Google",
   sub_buy: "Подписаться",
   sub_wait: "Обработка..."
 });

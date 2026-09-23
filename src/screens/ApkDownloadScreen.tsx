@@ -106,6 +106,25 @@ export function ApkDownloadScreen({ onBack }: ApkDownloadScreenProps) {
           Cihazınızda tam ekran ve internetsiz çalışan yerel Android uygulaması.
         </p>
 
+        {/* Direct Full ZIP Source Code Download Card */}
+        <div className="w-full bg-emerald-500/15 border border-emerald-500/40 rounded-2xl p-4 mb-4 text-left shadow-lg">
+          <div className="flex items-center gap-2 text-emerald-300 font-extrabold text-xs sm:text-sm mb-1.5">
+            <Download size={17} className="shrink-0 text-emerald-400" />
+            <span>Tüm Projeyi Tek Parça ZİP Olarak İndir (Eksiksiz)</span>
+          </div>
+          <p className="text-gray-200 text-xs leading-relaxed mb-3">
+            Tüm ekranlar, ses & diyalog motoru, Android ve MEBS kaynak kodlarını tek bir <strong>.zip paketi</strong> halinde indirin:
+          </p>
+          <a
+            href="/api/download-zip"
+            download="Sensei_Full_App_Source.zip"
+            className="w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-black text-xs sm:text-sm rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:scale-[1.01] active:scale-98 transition flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <Download size={17} className="stroke-[2.5]" />
+            <span>ZİP Dosyasını İndir (.zip - 44 MB)</span>
+          </a>
+        </div>
+
         {/* SOLUTION TO 'PAKET AYRIŞTIRILMASINDA SORUN OLUŞTU' */}
         <div className="w-full bg-amber-500/15 border border-amber-500/40 rounded-2xl p-4 mb-5 text-left shadow-lg">
           <div className="flex items-center gap-2 text-amber-300 font-extrabold text-xs sm:text-sm mb-1.5">

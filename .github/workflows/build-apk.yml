@@ -1,4 +1,4 @@
-name: Package Complete Project ZIP
+name: Build Sensei Android APK
 
 on:
   push:
@@ -8,20 +8,51 @@ on:
   workflow_dispatch:
 
 jobs:
-  package-zip:
-    name: Package Complete Project ZIP
+  build:
+    name: Build & Release Sensei APK
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
-      - name: Create Clean Project ZIP
-        run: |
-          zip -r Sensei_Full_App_Source.zip . -x "*.git*" "dist/*" ".cache/*"
+      - name: Set up Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
-      - name: Upload Project ZIP Artifact
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Grant execute permission for gradlew
+        run: |
+          cd android
+          chmod +x gradlew || true
+
+      - name: Build Debug APK with Gradle
+        run: |
+          cd android
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Rename APK for Easy Identification
+        run: |
+          mkdir -p build_output
+          if [ -f android/app/build/outputs/apk/debug/app-debug.apk ]; then
+            cp android/app/build/outputs/apk/debug/app-debug.apk build_output/Sensei-Bingelingo.apk
+          fi
+
+      - name: Upload APK as Workflow Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Sensei_Full_App_Source_ZIP
-          path: Sensei_Full_App_Source.zip
+          name: Sensei-Bingelingo-APK
+          path: build_output/Sensei-Bingelingo.apk
           retention-days: 30
+
+      - name: Create GitHub Release (Optional on tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: build_output/Sensei-Bingelingo.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

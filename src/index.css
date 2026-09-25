@@ -1,68 +1,28 @@
 @import "tailwindcss";
 
-@theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-}
-
 @layer base {
   body {
-    background-color: #0D0814;
-    color: white;
+    background-color: #0b132b;
+    color: #f8fafc;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    -webkit-tap-highlight-color: transparent;
   }
 }
 
-html {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  min-height: 100%;
-  background-color: #0D0814;
-  color: #FFFFFF;
-  -webkit-text-size-adjust: 100%;
-  box-sizing: border-box;
+@keyframes bounce-subtle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
 }
 
-*, *::before, *::after {
-  box-sizing: inherit;
+.animate-bounce-subtle {
+  animation: bounce-subtle 2s infinite ease-in-out;
 }
 
-body {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  min-height: 100%;
-  min-height: 100vh;
-  min-height: 100dvh;
-  background-color: #0D0814;
-  color: #FFFFFF;
-  overflow-x: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  -webkit-tap-highlight-color: transparent;
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.6; filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.4)); }
+  50% { opacity: 1; filter: drop-shadow(0 0 16px rgba(16, 185, 129, 0.8)); }
 }
 
-#root {
-  width: 100%;
-  min-height: 100%;
-  min-height: 100vh;
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  background-color: #0D0814;
-  overflow-x: hidden;
-}
-
-/* Custom scrollbar for terms */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2); 
-  border-radius: 4px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2); 
-  border-radius: 4px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.4); 
+.animate-pulse-glow {
+  animation: pulse-glow 2.5s infinite;
 }

@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item
-        android:width="66dp"
-        android:height="66dp"
-        android:drawable="@drawable/ic_sensei_icon"
-        android:gravity="center" />
-</layer-list>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#10b981"
+        android:pathData="M54,20 C35.2,20 20,35.2 20,54 C20,72.8 35.2,88 54,88 C72.8,88 88,72.8 88,54 C88,35.2 72.8,20 54,20 Z M46,42 C48.2,42 50,43.8 50,46 C50,48.2 48.2,50 46,50 C43.8,50 42,48.2 42,46 C42,43.8 43.8,42 46,42 Z M62,42 C64.2,42 66,43.8 66,46 C66,48.2 64.2,50 62,50 C59.8,50 58,48.2 58,46 C58,43.8 59.8,42 62,42 Z M54,76 C42,76 36,66 36,66 L72,66 C72,66 66,76 54,76 Z"/>
+</vector>
